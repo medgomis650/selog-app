@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SELOG — Senegal Expert Logistique</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#1a3a5c;--accent:#e8a020;--accent2:#2d8a6e;--bg:#f0f4f8;--card:#fff;--text:#1a2b3c;--muted:#6b7c93;--border:#dce3ea;--danger:#c0392b;--success:#27ae60;--sidebar-w:220px}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+/* LOGIN */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0f2238 0%,#1a3a5c 60%,#1a4a3a 100%)}
+.login-box{background:#fff;border-radius:20px;padding:40px;width:100%;max-width:380px;box-shadow:0 30px 80px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo-icon{width:60px;height:60px;background:var(--accent);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;margin:0 auto 12px}
+.login-logo h1{font-size:22px;font-weight:700;color:var(--primary)}
+.login-logo p{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+.login-field{margin-bottom:16px}
+.login-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.login-field input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;transition:.2s;color:var(--text);font-family:inherit}
+.login-field input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,58,92,.1)}
+.login-btn{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s;font-family:inherit}
+.login-btn:hover{background:#14304f}
+.login-btn:disabled{opacity:.6;cursor:not-allowed}
+.login-error{background:#fee2e2;color:#991b1b;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px;display:none}
+/* APP */
+#app-screen{display:none;min-height:100vh}
+#app-screen.show{display:flex}
+#sidebar{width:var(--sidebar-w);background:var(--primary);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto}
+.logo{padding:18px 14px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0}
+.logo-text{font-size:13px;font-weight:600;color:#fff;line-height:1.2}
+.logo-sub{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.6px}
+nav{flex:1;padding:10px 8px}
+.nav-section{font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.8px;padding:10px 8px 5px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.75);transition:.15s;font-size:13px;margin-bottom:1px}
+.nav-item:hover{background:rgba(255,255,255,.12);color:#fff}
+.nav-item.active{background:var(--accent);color:#fff}
+.nav-item i{font-size:16px;width:18px;text-align:center}
+.user-bar{padding:10px 8px;border-top:1px solid rgba(255,255,255,.1)}
+.user-info{display:flex;align-items:center;gap:8px;padding:8px 10px}
+.user-avatar{width:30px;height:30px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.user-name{font-size:12px;color:rgba(255,255,255,.85);font-weight:600}
+.user-role{font-size:10px;color:rgba(255,255,255,.4)}
+.logout-btn{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.5);font-size:12px;margin-top:2px;transition:.15s}
+.logout-btn:hover{background:rgba(255,0,0,.15);color:#ff8080}
+#main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:0 22px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:15px;font-weight:600}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.badge{background:var(--accent);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600}
+.api-badge{background:#e8f5e9;color:#2e7d32;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px}
+.dot{width:7px;height:7px;border-radius:50%;background:#27ae60;display:inline-block}
+#content{padding:20px;flex:1}
+.page{display:none}.page.active{display:block}
+.card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:18px;margin-bottom:14px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;margin-bottom:18px}
+.kpi{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:14px;position:relative;overflow:hidden}
+.kpi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-value{font-size:22px;font-weight:700;line-height:1}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.kpi-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:26px;opacity:.12}
+.tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#f8fafc;padding:9px 11px;text-align:left;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid #f0f4f8;transition:.1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#fafcff}
+tbody td{padding:9px 11px;vertical-align:middle}
+.status{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.status.livre{background:#dcfce7;color:#166534}
+.status.transit{background:#fef9c3;color:#854d0e}
+.status.actif{background:#dcfce7;color:#166534}
+.status.panne{background:#fee2e2;color:#991b1b}
+.status.inactif{background:#f1f5f9;color:#64748b}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:11px}
+.form-group{display:flex;flex-direction:column;gap:3px}
+.form-group label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.form-group input,.form-group select,.form-group textarea{padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);background:#fff;outline:none;transition:.2s;font-family:inherit}
+.form-group input:focus,.form-group select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,58,92,.08)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s;font-family:inherit}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:#14304f}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:#f8fafc}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-sm{padding:5px 9px;font-size:11px}
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;padding:16px}
+#modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:22px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.25)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-title{font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:6px}
+.modal-close:hover{background:#f1f5f9}
+.section-title{font-size:17px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.section-title i{color:var(--accent);font-size:20px}
+.tabs{display:flex;gap:3px;border-bottom:2px solid var(--border);margin-bottom:16px}
+.tab{padding:7px 14px;border-radius:8px 8px 0 0;cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);background:rgba(26,58,92,.04)}
+.progress{background:#f0f4f8;border-radius:4px;height:5px;overflow:hidden}
+.progress-bar{height:100%;border-radius:4px;background:var(--accent);transition:.4s}
+.chart-bar{display:flex;align-items:flex-end;gap:8px;height:110px;padding:6px 0}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bar{width:100%;border-radius:4px 4px 0 0;transition:.3s;min-height:4px}
+.bar-label{font-size:9px;color:var(--muted);white-space:nowrap}
+.bar-val{font-size:9px;font-weight:600;color:var(--primary)}
+.sum-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f4f8;font-size:13px}
+.sum-row:last-child{border:none;font-weight:700;font-size:14px;padding-top:10px}
+.camion-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:11px}
+.camion-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:.2s}
+.camion-card:hover{border-color:var(--primary);box-shadow:0 4px 12px rgba(26,58,92,.1)}
+.camion-card.en-panne{border-color:var(--danger);background:#fff5f5}
+.camion-num{font-size:14px;font-weight:700;color:var(--primary);margin-bottom:3px}
+#toast{position:fixed;bottom:20px;right:20px;background:var(--primary);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;transform:translateY(80px);opacity:0;transition:.3s;z-index:999;display:flex;align-items:center;gap:7px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.error{background:var(--danger)}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-row{text-align:center;padding:24px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">SL</div>
+      <h1>SELOG</h1>
+      <p>Senegal Expert Logistique</p>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-field">
+      <label>Identifiant</label>
+      <input type="text" id="login-user" placeholder="admin" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label>Mot de passe</label>
+      <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Se connecter</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <aside id="sidebar">
+    <div class="logo">
+      <div class="logo-icon">SL</div>
+      <div><div class="logo-text">SELOG</div><div class="logo-sub">Expert Logistique</div></div>
+    </div>
+    <nav>
+      <div class="nav-section">Principal</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)"><i class="ti ti-dashboard"></i> Tableau de bord</div>
+      <div class="nav-section">Opérations</div>
+      <div class="nav-item" onclick="showPage('livraisons',this)"><i class="ti ti-truck-delivery"></i> Livraisons</div>
+      <div class="nav-item" onclick="showPage('flotte',this)"><i class="ti ti-truck"></i> Flotte</div>
+      <div class="nav-item" onclick="showPage('chauffeurs',this)"><i class="ti ti-users"></i> Chauffeurs</div>
+      <div class="nav-item" onclick="showPage('pannes',this)"><i class="ti ti-tool"></i> Pannes</div>
+      <div class="nav-section">Finances</div>
+      <div class="nav-item" onclick="showPage('charges',this)"><i class="ti ti-calculator"></i> Charges fixes</div>
+      <div class="nav-item" onclick="showPage('extra',this)"><i class="ti ti-coin"></i> Extra</div>
+      <div class="nav-section">Analyse</div>
+      <div class="nav-item" onclick="showPage('rapports',this)"><i class="ti ti-chart-bar"></i> Rapports</div>
+      <div class="nav-item" id="nav-users" style="display:none" onclick="showPage('users',this)"><i class="ti ti-shield"></i> Utilisateurs</div>
+    </nav>
+    <div class="user-bar">
+      <div class="user-info">
+        <div class="user-avatar" id="sb-avatar">AD</div>
+        <div><div class="user-name" id="sb-name">Admin</div><div class="user-role" id="sb-role">Administrateur</div></div>
+      </div>
+      <div class="logout-btn" onclick="doLogout()"><i class="ti ti-logout"></i> Déconnexion</div>
+    </div>
+  </aside>
+
+  <div id="main">
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">Tableau de bord</div>
+      <div class="topbar-right">
+        <div class="api-badge"><span class="dot"></span> API connectée</div>
+        <span class="badge" id="month-badge"></span>
+      </div>
+    </div>
+    <div id="content">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="kpi-grid" id="kpi-grid">
+          <div class="kpi"><div class="kpi-label">Chargement...</div><div class="kpi-value">—</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:12px"><i class="ti ti-chart-bar" style="color:var(--accent)"></i> CA — Évolution</div><div class="chart-bar" id="chart-ca"></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:12px"><i class="ti ti-truck" style="color:#2d8a6e"></i> CA par camion</div><div class="chart-bar" id="chart-camion"></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:0">
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:10px">Dernières livraisons</div><div class="tbl-wrap"><table><thead><tr><th>Camion</th><th>Conteneur</th><th>Zone</th><th>Statut</th></tr></thead><tbody id="dash-livraisons"></tbody></table></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--danger)">Pannes récentes</div><div class="tbl-wrap"><table><thead><tr><th>Camion</th><th>Nature</th><th>Coût</th></tr></thead><tbody id="dash-pannes"></tbody></table></div></div>
+        </div>
+      </div>
+
+      <!-- LIVRAISONS -->
+      <div class="page" id="page-livraisons">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title"><i class="ti ti-truck-delivery"></i> Livraisons</div>
+          <button class="btn btn-primary" onclick="openModal('add-livraison')"><i class="ti ti-plus"></i> Nouvelle livraison</button>
+        </div>
+        <div class="card" style="padding:10px 14px;margin-bottom:10px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <select id="f-camion" onchange="loadLivraisons()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none"><option value="">Tous camions</option></select>
+            <select id="f-statut" onchange="loadLivraisons()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none"><option value="">Tous statuts</option><option>Livré</option><option>En transit</option></select>
+            <input type="text" id="f-search" placeholder="Rechercher..." style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;flex:1;min-width:150px" oninput="loadLivraisons()">
+          </div>
+        </div>
+        <div class="card" style="padding:0"><div class="tbl-wrap"><table>
+          <thead><tr><th>Date</th><th>Camion</th><th>Chauffeur</th><th>Conteneur</th><th>Type</th><th>Zone</th><th>Durée</th><th>Prix</th><th>Client</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="tbl-livraisons"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- FLOTTE -->
+      <div class="page" id="page-flotte">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title"><i class="ti ti-truck"></i> Flotte</div>
+          <button class="btn btn-primary" onclick="openModal('add-camion')"><i class="ti ti-plus"></i> Ajouter camion</button>
+        </div>
+        <div class="camion-grid" id="camion-grid"></div>
+      </div>
+
+      <!-- CHAUFFEURS -->
+      <div class="page" id="page-chauffeurs">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title"><i class="ti ti-users"></i> Chauffeurs</div>
+          <button class="btn btn-primary" onclick="openModal('add-chauffeur')"><i class="ti ti-plus"></i> Ajouter chauffeur</button>
+        </div>
+        <div class="card" style="padding:0"><div class="tbl-wrap"><table>
+          <thead><tr><th>#</th><th>Nom</th><th>Naissance</th><th>Téléphone</th><th>Permis</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="tbl-chauffeurs"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- PANNES -->
+      <div class="page" id="page-pannes">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title"><i class="ti ti-tool"></i> Pannes</div>
+          <button class="btn btn-danger" onclick="openModal('add-panne')"><i class="ti ti-plus"></i> Déclarer panne</button>
+        </div>
+        <div class="card" style="padding:0"><div class="tbl-wrap"><table>
+          <thead><tr><th>Date</th><th>Camion</th><th>Nature</th><th>Pièces</th><th>M.O.</th><th>Ouvrier</th><th>Fin</th><th>Total</th><th></th></tr></thead>
+          <tbody id="tbl-pannes"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- CHARGES -->
+      <div class="page" id="page-charges">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title"><i class="ti ti-calculator"></i> Charges fixes</div>
+          <div style="display:flex;gap:8px">
+            <select id="charge-mois" onchange="loadCharges()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none">
+              <option>Janvier</option><option>Février</option><option>Mars</option><option>Avril</option><option selected>Mai</option><option>Juin</option><option>Juillet</option><option>Août</option><option>Septembre</option><option>Octobre</option><option>Novembre</option><option>Décembre</option>
+            </select>
+            <button class="btn btn-success btn-sm" onclick="saveCharges()"><i class="ti ti-device-floppy"></i> Sauvegarder</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 300px;gap:14px">
+          <div class="card"><div id="charges-form"></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Résumé</div><div id="charges-summary"></div></div>
+        </div>
+      </div>
+
+      <!-- EXTRA -->
+      <div class="page" id="page-extra">
+        <div class="section-title"><i class="ti ti-coin"></i> Dépenses extra</div>
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('extra1',this)">Extra par camion</div>
+          <div class="tab" onclick="switchTab('extra2',this)">Extra général</div>
+        </div>
+        <div id="tab-extra1">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openModal('add-extra1')"><i class="ti ti-plus"></i> Ajouter</button></div>
+          <div class="card" style="padding:0"><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Camion</th><th>Motif</th><th>Montant</th><th></th></tr></thead><tbody id="tbl-extra1"></tbody></table></div></div>
+        </div>
+        <div id="tab-extra2" style="display:none">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openModal('add-extra2')"><i class="ti ti-plus"></i> Ajouter</button></div>
+          <div class="card" style="padding:0"><div class="tbl-wrap"><table><thead><tr><th>Nom</th><th>Motif</th><th>Montant</th><th></th></tr></thead><tbody id="tbl-extra2"></tbody></table></div></div>
+        </div>
+      </div>
+
+      <!-- RAPPORTS -->
+      <div class="page" id="page-rapports">
+        <div class="section-title"><i class="ti ti-chart-bar"></i> Rapports</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Performance par camion</div><div id="rapport-camion"></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Par chauffeur</div><div id="rapport-chauffeur"></div></div>
+        </div>
+        <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Par zone</div><div id="rapport-zone"></div></div>
+      </div>
+
+      <!-- USERS -->
+      <div class="page" id="page-users">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title"><i class="ti ti-shield"></i> Utilisateurs</div>
+          <button class="btn btn-primary" onclick="openModal('add-user')"><i class="ti ti-plus"></i> Ajouter</button>
+        </div>
+        <div class="card" style="padding:0"><div class="tbl-wrap"><table>
+          <thead><tr><th>#</th><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>Dernière connexion</th><th></th></tr></thead>
+          <tbody id="tbl-users"></tbody>
+        </table></div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modal-content"></div>
+</div>
+<div id="toast"><i class="ti ti-check" id="toast-icon"></i><span id="toast-msg"></span></div>
+
+<script>
+// ── API CLIENT ────────────────────────────────────────────────
+const API = window.location.origin;
+let accessToken = localStorage.getItem('selog_token');
+let refreshToken = localStorage.getItem('selog_refresh');
+let currentUser  = JSON.parse(localStorage.getItem('selog_user') || 'null');
+
+async function apiFetch(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers||{}) };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  let res = await fetch(API + path, { ...options, headers });
+  if (res.status === 401 && refreshToken) {
+    // Tenter de renouveler le token
+    const r = await fetch(API + '/api/auth/refresh', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken })
+    });
+    if (r.ok) {
+      const data = await r.json();
+      accessToken = data.accessToken;
+      localStorage.setItem('selog_token', accessToken);
+      headers['Authorization'] = `Bearer ${accessToken}`;
+      res = await fetch(API + path, { ...options, headers });
+    } else { doLogout(); return null; }
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Erreur ${res.status}`);
+  }
+  return res.json();
+}
+
+// ── AUTH ──────────────────────────────────────────────────────
+async function doLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  if (!username || !password) { showLoginError('Remplissez tous les champs'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Connexion...';
+  try {
+    const data = await apiFetch('/api/auth/login', {
+      method: 'POST', body: JSON.stringify({ username, password })
+    });
+    accessToken  = data.accessToken;
+    refreshToken = data.refreshToken;
+    currentUser  = data.user;
+    localStorage.setItem('selog_token',   accessToken);
+    localStorage.setItem('selog_refresh', refreshToken);
+    localStorage.setItem('selog_user',    JSON.stringify(currentUser));
+    showApp();
+  } catch (e) {
+    showLoginError(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Se connecter';
+  }
+}
+function showLoginError(msg) {
+  const e = document.getElementById('login-error');
+  e.textContent = msg; e.style.display = 'block';
+}
+async function doLogout() {
+  try { await apiFetch('/api/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }); } catch {}
+  accessToken = refreshToken = currentUser = null;
+  ['selog_token','selog_refresh','selog_user'].forEach(k => localStorage.removeItem(k));
+  document.getElementById('app-screen').classList.remove('show');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').classList.add('show');
+  const init = currentUser.nom.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('sb-avatar').textContent = init;
+  document.getElementById('sb-name').textContent = currentUser.nom;
+  document.getElementById('sb-role').textContent = currentUser.role === 'admin' ? 'Administrateur' : 'Gestionnaire';
+  if (currentUser.role === 'admin') document.getElementById('nav-users').style.display = 'flex';
+  document.getElementById('month-badge').textContent = new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  loadDashboard();
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if (el) el.classList.add('active');
+  const titles = {dashboard:'Tableau de bord',livraisons:'Livraisons',flotte:'Flotte',chauffeurs:'Chauffeurs',pannes:'Pannes',charges:'Charges fixes',extra:'Extra',rapports:'Rapports',users:'Utilisateurs'};
+  document.getElementById('page-title').textContent = titles[id] || id;
+  const loaders = {dashboard:loadDashboard,livraisons:()=>{ populateCamionFilter(); loadLivraisons(); },flotte:loadFlotte,chauffeurs:loadChauffeurs,pannes:loadPannes,charges:loadCharges,extra:loadExtra,rapports:loadRapports,users:loadUsers};
+  if (loaders[id]) loaders[id]();
+}
+function switchTab(id, el) {
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-extra1').style.display = id==='extra1'?'block':'none';
+  document.getElementById('tab-extra2').style.display = id==='extra2'?'block':'none';
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const now = new Date();
+    const data = await apiFetch(`/api/dashboard?mois=${now.getMonth()+1}&annee=${now.getFullYear()}`);
+    if (!data) return;
+    const k = data.kpi;
+    document.getElementById('kpi-grid').innerHTML = [
+      {label:'CA Mensuel',val:fmt(k.ca_total),sub:'FCFA',icon:'ti-trending-up'},
+      {label:'Bénéfice net',val:fmt(k.benefice_net),sub:'FCFA',icon:'ti-cash'},
+      {label:'Coût total',val:fmt(k.cout_total),sub:'FCFA',icon:'ti-receipt'},
+      {label:'Livraisons',val:k.nb_livraisons,sub:`${k.nb_livrees} livrées`,icon:'ti-package'},
+      {label:'Durée moyenne',val:parseFloat(k.duree_moyenne||0).toFixed(1),sub:'jours',icon:'ti-clock'},
+      {label:'En transit',val:k.nb_en_transit,sub:'conteneurs',icon:'ti-truck'},
+    ].map(x=>`<div class="kpi"><div class="kpi-label">${x.label}</div><div class="kpi-value">${x.val}</div><div class="kpi-sub">${x.sub}</div><i class="ti ${x.icon} kpi-icon"></i></div>`).join('');
+
+    // Charts
+    const ev = data.evolution;
+    renderBarChart('chart-ca', ev.map(x=>x.mois_label.substring(0,3)), ev.map(x=>parseInt(x.ca)), '#1a3a5c');
+    const pc = data.par_camion.slice(0,6);
+    renderBarChart('chart-camion', pc.map(x=>x.numero.split('-')[1]||x.numero), pc.map(x=>parseInt(x.ca)), '#e8a020');
+
+    // Recent livraisons & pannes
+    const livs = await apiFetch('/api/livraisons?limit=4');
+    document.getElementById('dash-livraisons').innerHTML = (livs?.data||[]).map(l=>`<tr>
+      <td><b>${l.camion_numero}</b></td><td style="font-size:11px;font-family:monospace">${l.numero_conteneur}</td>
+      <td>${l.zone_livraison}</td><td><span class="status ${l.statut==='Livré'?'livre':'transit'}">${l.statut}</span></td>
+    </tr>`).join('') || '<tr><td colspan="4" class="empty-row">Aucune livraison</td></tr>';
+
+    const pannes = await apiFetch('/api/pannes');
+    document.getElementById('dash-pannes').innerHTML = (pannes||[]).slice(0,3).map(p=>`<tr>
+      <td><b style="color:var(--danger)">${p.camion_numero}</b></td>
+      <td style="font-size:11px">${p.nature_panne.substring(0,22)}…</td>
+      <td>${fmt(p.cout_total)} F</td>
+    </tr>`).join('') || '<tr><td colspan="3" class="empty-row">Aucune panne</td></tr>';
+  } catch(e) { showToast(e.message,'error'); }
+}
+function renderBarChart(id,labels,vals,color) {
+  const max = Math.max(...vals,1);
+  document.getElementById(id).innerHTML = labels.map((l,i)=>`
+    <div class="bar-col">
+      <div class="bar-val">${(vals[i]/1000).toFixed(0)}k</div>
+      <div class="bar" style="height:${Math.round(vals[i]/max*80)+10}px;background:${color}"></div>
+      <div class="bar-label">${l}</div>
+    </div>`).join('');
+}
+
+// ── LIVRAISONS ────────────────────────────────────────────────
+let allCamions = [];
+async function populateCamionFilter() {
+  if (allCamions.length) return;
+  allCamions = await apiFetch('/api/camions') || [];
+  const sel = document.getElementById('f-camion');
+  allCamions.forEach(c => { const o=document.createElement('option'); o.value=c.id; o.textContent=c.numero; sel.appendChild(o); });
+}
+async function loadLivraisons() {
+  try {
+    const params = new URLSearchParams();
+    const cam = document.getElementById('f-camion')?.value;
+    const stat = document.getElementById('f-statut')?.value;
+    const q = document.getElementById('f-search')?.value;
+    if (cam) params.set('camion_id', cam);
+    if (stat) params.set('statut', stat);
+    if (q) params.set('search', q);
+    const data = await apiFetch('/api/livraisons?' + params);
+    document.getElementById('tbl-livraisons').innerHTML = (data?.data||[]).map(l=>`<tr>
+      <td>${l.date_mission}</td><td><b>${l.camion_numero}</b></td><td>${l.chauffeur_nom||'—'}</td>
+      <td style="font-family:monospace;font-size:11px">${l.numero_conteneur}</td>
+      <td>${l.type_conteneur}</td><td>${l.zone_livraison}</td>
+      <td>${l.duree_mission!=null?l.duree_mission+'j':'—'}</td>
+      <td style="font-weight:600;color:#2d8a6e">${fmt(l.prix_transport)}</td>
+      <td>${l.nom_client||'—'}</td>
+      <td><span class="status ${l.statut==='Livré'?'livre':'transit'}">${l.statut}</span></td>
+      <td><button class="btn btn-outline btn-sm" onclick="deleteLivraison('${l.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
+    </tr>`).join('') || '<tr><td colspan="11" class="empty-row">Aucune livraison</td></tr>';
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function deleteLivraison(id) {
+  if (!confirm('Supprimer cette livraison ?')) return;
+  await apiFetch('/api/livraisons/'+id, { method:'DELETE' });
+  loadLivraisons(); showToast('Livraison supprimée');
+}
+
+// ── FLOTTE ────────────────────────────────────────────────────
+async function loadFlotte() {
+  try {
+    const cams = await apiFetch('/api/camions') || [];
+    document.getElementById('camion-grid').innerHTML = cams.map(c=>`
+      <div class="camion-card ${c.statut==='panne'?'en-panne':''}">
+        <div class="camion-num"><i class="ti ti-truck" style="font-size:12px;margin-right:4px"></i>${c.numero}</div>
+        <div style="font-size:11px;color:var(--muted);margin:3px 0 8px">${c.nb_missions} missions · ${fmt(c.ca_total)} F</div>
+        <span class="status ${c.statut==='actif'?'actif':'panne'}">${c.statut==='actif'?'Actif':'En panne'}</span>
+        <div style="margin-top:10px">
+          <div class="progress"><div class="progress-bar" style="width:${Math.min(c.nb_missions*15,100)}%"></div></div>
+        </div>
+      </div>`).join('') || '<p style="color:var(--muted)">Aucun camion</p>';
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+// ── CHAUFFEURS ────────────────────────────────────────────────
+async function loadChauffeurs() {
+  try {
+    const data = await apiFetch('/api/chauffeurs') || [];
+    document.getElementById('tbl-chauffeurs').innerHTML = data.map((c,i)=>`<tr>
+      <td>${i+1}</td><td><b>${c.nom}</b></td><td>${c.date_naissance||'—'}</td>
+      <td>${c.telephone||'—'}</td><td style="font-family:monospace;font-size:11px">${c.numero_permis||'—'}</td>
+      <td><span class="status ${c.statut}">${c.statut==='actif'?'Actif':'Inactif'}</span></td>
+      <td><button class="btn btn-outline btn-sm" onclick="deleteItem('/api/chauffeurs/${c.id}','chauffeur',loadChauffeurs)"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty-row">Aucun chauffeur</td></tr>';
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+// ── PANNES ────────────────────────────────────────────────────
+async function loadPannes() {
+  try {
+    const data = await apiFetch('/api/pannes') || [];
+    document.getElementById('tbl-pannes').innerHTML = data.map(p=>`<tr>
+      <td>${p.date_panne}</td><td><b style="color:var(--danger)">${p.camion_numero}</b></td>
+      <td>${p.nature_panne}</td><td>${fmt(p.cout_pieces)}</td><td>${fmt(p.main_oeuvre)}</td>
+      <td>${p.nom_ouvrier||'—'}</td><td>${p.date_fin||'—'}</td>
+      <td><b>${fmt(p.cout_total)} F</b></td>
+      <td><button class="btn btn-outline btn-sm" onclick="deleteItem('/api/pannes/${p.id}','panne',loadPannes)"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
+    </tr>`).join('') || '<tr><td colspan="9" class="empty-row">Aucune panne</td></tr>';
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+// ── CHARGES ───────────────────────────────────────────────────
+const CHARGE_POSTES = ['Salaires','Assurances camions','Assurance études','Internet','Tontine','Dépenses famille','Électricité','GPS','Salle de sport','Divers'];
+async function loadCharges() {
+  const mois = document.getElementById('charge-mois').value;
+  const annee = new Date().getFullYear();
+  const data = await apiFetch(`/api/charges?mois=${encodeURIComponent(mois)}&annee=${annee}`) || [];
+  const map = {};
+  data.forEach(c => map[c.poste] = c.montant);
+  document.getElementById('charges-form').innerHTML = CHARGE_POSTES.map(p=>`
+    <div class="form-group" style="margin-bottom:10px">
+      <label>${p}</label>
+      <input type="number" id="charge-${p.replace(/ /g,'_')}" value="${map[p]||0}" oninput="updateChargesSummary()">
+    </div>`).join('');
+  updateChargesSummary();
+}
+function updateChargesSummary() {
+  let total = 0;
+  const rows = CHARGE_POSTES.map(p => {
+    const v = parseInt(document.getElementById('charge-'+p.replace(/ /g,'_'))?.value)||0;
+    total += v;
+    return `<div class="sum-row"><span>${p}</span><span>${fmt(v)} F</span></div>`;
+  });
+  document.getElementById('charges-summary').innerHTML = rows.join('') +
+    `<div class="sum-row"><span>Total</span><span style="color:var(--danger)">${fmt(total)} F</span></div>`;
+}
+async function saveCharges() {
+  const mois = document.getElementById('charge-mois').value;
+  const annee = new Date().getFullYear();
+  const charges = CHARGE_POSTES.map(p => ({
+    poste: p, montant: parseInt(document.getElementById('charge-'+p.replace(/ /g,'_'))?.value)||0
+  }));
+  await apiFetch('/api/charges', { method:'PUT', body: JSON.stringify({ mois, annee, charges }) });
+  showToast('Charges enregistrées !');
+}
+
+// ── EXTRA ─────────────────────────────────────────────────────
+async function loadExtra() {
+  const [e1,e2] = await Promise.all([apiFetch('/api/extra/camion'), apiFetch('/api/extra/general')]);
+  document.getElementById('tbl-extra1').innerHTML = (e1||[]).map(e=>`<tr>
+    <td>${e.date_depense}</td><td>${e.camion_numero}</td><td>${e.motif}</td>
+    <td>${fmt(e.montant)} F</td>
+    <td><button class="btn btn-outline btn-sm" onclick="deleteItem('/api/extra/camion/${e.id}','extra',loadExtra)"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
+  </tr>`).join('') || '<tr><td colspan="5" class="empty-row">Aucun</td></tr>';
+  document.getElementById('tbl-extra2').innerHTML = (e2||[]).map(e=>`<tr>
+    <td>${e.nom}</td><td>${e.motif}</td><td>${fmt(e.montant)} F</td>
+    <td><button class="btn btn-outline btn-sm" onclick="deleteItem('/api/extra/general/${e.id}','extra',loadExtra)"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
+  </tr>`).join('') || '<tr><td colspan="4" class="empty-row">Aucun</td></tr>';
+}
+
+// ── RAPPORTS ──────────────────────────────────────────────────
+async function loadRapports() {
+  const now = new Date();
+  const data = await apiFetch(`/api/dashboard?mois=${now.getMonth()+1}&annee=${now.getFullYear()}`);
+  const total = data.par_camion.reduce((s,c)=>s+parseInt(c.ca),0)||1;
+  document.getElementById('rapport-camion').innerHTML = data.par_camion.map(c=>`
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+        <span><b>${c.numero}</b> — ${c.nb_missions} missions</span>
+        <span style="color:#2d8a6e;font-weight:600">${fmt(c.ca)} F</span>
+      </div>
+      <div class="progress"><div class="progress-bar" style="width:${Math.round(c.ca/total*100)}%;background:var(--primary)"></div></div>
+    </div>`).join('') || '<p style="color:var(--muted)">Aucune donnée</p>';
+  const chaufs = await apiFetch('/api/chauffeurs') || [];
+  const livs = (await apiFetch('/api/livraisons?limit=200'))?.data || [];
+  document.getElementById('rapport-chauffeur').innerHTML = chaufs.map(ch=>{
+    const n = livs.filter(l=>l.chauffeur_id===ch.id).length;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f4f8;font-size:12px">
+      <span>${ch.nom}</span><span class="badge" style="background:var(--primary)">${n} missions</span>
+    </div>`;
+  }).join('');
+  document.getElementById('rapport-zone').innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap">
+    ${data.par_zone.map(z=>`<div style="flex:1;min-width:110px;background:var(--bg);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase">${z.zone_livraison}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--primary)">${z.nb}</div>
+      <div style="font-size:10px;color:#2d8a6e">${fmt(z.ca)} F</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ── USERS ─────────────────────────────────────────────────────
+async function loadUsers() {
+  const data = await apiFetch('/api/users') || [];
+  document.getElementById('tbl-users').innerHTML = data.map((u,i)=>`<tr>
+    <td>${i+1}</td><td><b>${u.username}</b></td><td>${u.nom}</td>
+    <td><span class="badge" style="${u.role==='admin'?'':'background:#2d8a6e'}">${u.role}</span></td>
+    <td style="color:var(--muted);font-size:11px">${u.last_login||'Jamais'}</td>
+    <td>${u.id!==currentUser?.id?`<button class="btn btn-outline btn-sm" onclick="deleteItem('/api/users/${u.id}','utilisateur',loadUsers)"><i class="ti ti-trash" style="color:var(--danger)"></i></button>`:'<span style="font-size:11px;color:var(--muted)">Vous</span>'}</td>
+  </tr>`).join('');
+}
+
+// ── MODALS ────────────────────────────────────────────────────
+async function openModal(id) {
+  const cams = await apiFetch('/api/camions') || [];
+  const chaufs = await apiFetch('/api/chauffeurs') || [];
+  const camOpts = cams.map(c=>`<option value="${c.id}">${c.numero}</option>`).join('');
+  const chaufOpts = chaufs.map(c=>`<option value="${c.id}">${c.nom}</option>`).join('');
+  const today = new Date().toISOString().split('T')[0];
+  const tpls = {
+    'add-livraison':`<div class="modal-header"><div class="modal-title"><i class="ti ti-truck-delivery" style="margin-right:6px;color:var(--accent)"></i>Nouvelle livraison</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${today}"></div>
+      <div class="form-group"><label>Camion</label><select id="f-cam">${camOpts}</select></div>
+      <div class="form-group"><label>Chauffeur</label><select id="f-chauf"><option value="">— aucun —</option>${chaufOpts}</select></div>
+      <div class="form-group"><label>N° Conteneur</label><input id="f-cont" placeholder="XXXX0000000"></div>
+      <div class="form-group"><label>Type</label><select id="f-type"><option>20 pieds</option><option>40 pieds</option><option>45 pieds</option></select></div>
+      <div class="form-group"><label>Compagnie</label><input id="f-comp"></div>
+      <div class="form-group"><label>Zone</label><input id="f-zone" placeholder="Dakar, Thiès..."></div>
+      <div class="form-group"><label>Prix transport (F)</label><input type="number" id="f-prix"></div>
+      <div class="form-group"><label>Carburant (F)</label><input type="number" id="f-carb"></div>
+      <div class="form-group"><label>Frais (F)</label><input type="number" id="f-frais"></div>
+      <div class="form-group"><label>AGS (F)</label><input type="number" id="f-ags"></div>
+      <div class="form-group"><label>Client</label><input id="f-client"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveLivraison()"><i class="ti ti-check"></i> Enregistrer</button>
+    </div>`,
+    'add-camion':`<div class="modal-header"><div class="modal-title">Ajouter un camion</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Immatriculation</label><input id="f-immat" placeholder="SN-XXXX-X"></div>
+      <div class="form-group"><label>Marque</label><input id="f-marque" placeholder="Mercedes..."></div>
+      <div class="form-group"><label>Modèle</label><input id="f-modele"></div>
+      <div class="form-group"><label>Année</label><input type="number" id="f-annee" placeholder="2020"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCamion()">Ajouter</button>
+    </div>`,
+    'add-chauffeur':`<div class="modal-header"><div class="modal-title">Ajouter un chauffeur</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>Nom et Prénom</label><input id="f-nom"></div>
+      <div class="form-group"><label>Date de naissance</label><input type="date" id="f-dob"></div>
+      <div class="form-group"><label>Téléphone</label><input id="f-tel"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>N° Permis</label><input id="f-perm"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveChauffeur()">Ajouter</button>
+    </div>`,
+    'add-panne':`<div class="modal-header"><div class="modal-title"><i class="ti ti-tool" style="margin-right:6px;color:var(--danger)"></i>Déclarer une panne</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${today}"></div>
+      <div class="form-group"><label>Camion</label><select id="f-cam">${camOpts}</select></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Nature</label><textarea id="f-nat" rows="2" style="padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea></div>
+      <div class="form-group"><label>Coût pièces (F)</label><input type="number" id="f-prix"></div>
+      <div class="form-group"><label>Main d'œuvre (F)</label><input type="number" id="f-mo"></div>
+      <div class="form-group"><label>Ouvrier</label><input id="f-ouv"></div>
+      <div class="form-group"><label>Date fin</label><input type="date" id="f-fin"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-danger" onclick="savePanne()">Déclarer</button>
+    </div>`,
+    'add-extra1':`<div class="modal-header"><div class="modal-title">Extra par camion</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${today}"></div>
+      <div class="form-group"><label>Camion</label><select id="f-cam">${camOpts}</select></div>
+      <div class="form-group"><label>Motif</label><input id="f-mot"></div>
+      <div class="form-group"><label>Montant (F)</label><input type="number" id="f-mont"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveExtra1()">Ajouter</button>
+    </div>`,
+    'add-extra2':`<div class="modal-header"><div class="modal-title">Extra général</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Nom</label><input id="f-nom"></div>
+      <div class="form-group"><label>Motif</label><input id="f-mot"></div>
+      <div class="form-group"><label>Montant (F)</label><input type="number" id="f-mont"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveExtra2()">Ajouter</button>
+    </div>`,
+    'add-user':`<div class="modal-header"><div class="modal-title">Ajouter utilisateur</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Identifiant</label><input id="f-uname"></div>
+      <div class="form-group"><label>Mot de passe</label><input type="password" id="f-upwd"></div>
+      <div class="form-group"><label>Nom complet</label><input id="f-unom"></div>
+      <div class="form-group"><label>Rôle</label><select id="f-urole"><option value="gestionnaire">Gestionnaire</option><option value="admin">Admin</option></select></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveUser()">Créer</button>
+    </div>`,
+  };
+  document.getElementById('modal-content').innerHTML = tpls[id] || '';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalOutside(e) { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
+
+// ── SAVE ──────────────────────────────────────────────────────
+async function saveLivraison() {
+  try {
+    await apiFetch('/api/livraisons', { method:'POST', body: JSON.stringify({
+      date_mission: v('f-date'), camion_id: v('f-cam'), chauffeur_id: v('f-chauf')||undefined,
+      numero_conteneur: v('f-cont')||'XXXX0000000', type_conteneur: v('f-type'),
+      compagnie: v('f-comp'), zone_livraison: v('f-zone')||'Dakar',
+      prix_transport: parseInt(v('f-prix'))||0, carburant: parseInt(v('f-carb'))||0,
+      frais: parseInt(v('f-frais'))||0, ags: parseInt(v('f-ags'))||0,
+      nom_client: v('f-client')
+    })});
+    closeModal(); loadLivraisons(); showToast('Livraison enregistrée !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function saveCamion() {
+  try {
+    await apiFetch('/api/camions', { method:'POST', body: JSON.stringify({
+      numero: v('f-immat'), marque: v('f-marque'), modele: v('f-modele'),
+      annee: parseInt(v('f-annee'))||undefined
+    })});
+    closeModal(); allCamions=[]; loadFlotte(); showToast('Camion ajouté !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function saveChauffeur() {
+  try {
+    await apiFetch('/api/chauffeurs', { method:'POST', body: JSON.stringify({
+      nom: v('f-nom'), date_naissance: v('f-dob')||undefined,
+      telephone: v('f-tel'), numero_permis: v('f-perm')
+    })});
+    closeModal(); loadChauffeurs(); showToast('Chauffeur ajouté !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function savePanne() {
+  try {
+    await apiFetch('/api/pannes', { method:'POST', body: JSON.stringify({
+      date_panne: v('f-date'), camion_id: v('f-cam'),
+      nature_panne: v('f-nat'), cout_pieces: parseInt(v('f-prix'))||0,
+      main_oeuvre: parseInt(v('f-mo'))||0, nom_ouvrier: v('f-ouv'),
+      date_fin: v('f-fin')||undefined
+    })});
+    closeModal(); loadPannes(); showToast('Panne déclarée !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function saveExtra1() {
+  try {
+    await apiFetch('/api/extra/camion', { method:'POST', body: JSON.stringify({
+      date_depense: v('f-date'), camion_id: v('f-cam'),
+      motif: v('f-mot'), montant: parseInt(v('f-mont'))||0
+    })});
+    closeModal(); loadExtra(); showToast('Extra ajouté !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function saveExtra2() {
+  try {
+    await apiFetch('/api/extra/general', { method:'POST', body: JSON.stringify({
+      nom: v('f-nom'), motif: v('f-mot'), montant: parseInt(v('f-mont'))||0
+    })});
+    closeModal(); loadExtra(); showToast('Extra ajouté !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function saveUser() {
+  try {
+    await apiFetch('/api/users', { method:'POST', body: JSON.stringify({
+      username: v('f-uname'), password: v('f-upwd'),
+      nom: v('f-unom'), role: v('f-urole')
+    })});
+    closeModal(); loadUsers(); showToast('Utilisateur créé !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function deleteItem(path, label, reload) {
+  if (!confirm(`Supprimer ce ${label} ?`)) return;
+  await apiFetch(path, { method:'DELETE' });
+  reload(); showToast(`${label} supprimé`);
+}
+
+// ── UTILS ─────────────────────────────────────────────────────
+function v(id) { return document.getElementById(id)?.value || ''; }
+function fmt(n) { return parseInt(n||0).toLocaleString('fr-FR'); }
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.className = type==='error' ? 'error show' : 'show';
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── BOOT ──────────────────────────────────────────────────────
+if (accessToken && currentUser) showApp();
+</script>
+</body>
+</html>
