@@ -99,7 +99,7 @@ dashRouter.get('/', authenticate, async (req, res, next) => {
           COUNT(*)                         AS nb_livraisons,
           COALESCE(SUM(prix_transport), 0) AS ca_total,
           COALESCE(SUM(carburant + frais + ags), 0) AS cout_direct,
-          COALESCE(AVG(duree_mission), 0)  AS duree_moyenne,
+          COALESCE(AVG(CASE WHEN date_retour IS NOT NULL THEN (date_retour - date_mission) ELSE NULL END), 0) AS duree_moyenne,
           COUNT(CASE WHEN statut = 'Livré' THEN 1 END) AS nb_livrees,
           COUNT(CASE WHEN statut = 'En transit' THEN 1 END) AS nb_en_transit
         FROM livraisons
