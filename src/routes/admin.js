@@ -139,36 +139,61 @@ dashRouter.get('/', authenticate, async (req, res, next) => {
         GROUP BY 1,2,3 ORDER BY annee_nb, mois_nb`),
     ]);
 
-    // Charges fixes + extras + progression
-    const [chargesMonth, extraCamion, extraGeneral, precedent] = await Promise.all([
-      query(`SELECT COALESCE(SUM(montant), 0) AS total FROM charges_fixes
-             WHERE mois = TO_CHAR(TO_DATE($1::text, 'MM'), 'Month') AND annee = $2`,
-             [moisNb, annee]),
+    // Noms de mois en français (correspondant à ce qui est stocké en base)
+    const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
+                     'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+    const moisNom     = MOIS_FR[moisNb - 1];
+    const moisNomPrec = moisNb === 1 ? MOIS_FR[11] : MOIS_FR[moisNb - 2];
+    const anneePrec   = moisNb === 1 ? annee - 1 : annee;
+
+    // Charges fixes + extras + précédent (tous en parallèle)
+    const [chargesMonth, chargesPrec, extraCamion, extraGeneral, precedent] = await Promise.all([
+      // Charges du mois courant — utilise le nom français exact
+      query(`SELECT COALESCE(SUM(montant), 0) AS total
+             FROM charges_fixes
+             WHERE LOWER(TRIM(mois)) = LOWER($1) AND annee = $2`,
+             [moisNom, annee]),
+
+      // Charges du mois précédent
+      query(`SELECT COALESCE(SUM(montant), 0) AS total
+             FROM charges_fixes
+             WHERE LOWER(TRIM(mois)) = LOWER($1) AND annee = $2`,
+             [moisNomPrec, anneePrec]),
+
+      // Extra par camion du mois courant
       query(`SELECT COALESCE(SUM(montant), 0) AS total FROM extra_camion
-             WHERE EXTRACT(YEAR FROM date_depense) = $1 AND EXTRACT(MONTH FROM date_depense) = $2`,
+             WHERE EXTRACT(YEAR FROM date_depense) = $1
+               AND EXTRACT(MONTH FROM date_depense) = $2`,
              [annee, moisNb]),
+
+      // Extra général (total cumulé)
       query(`SELECT COALESCE(SUM(montant), 0) AS total FROM extra_general`),
+
+      // CA + coûts directs du mois précédent (pour progression)
       query(`SELECT COALESCE(SUM(prix_transport),0) AS ca,
                     COALESCE(SUM(carburant+frais+ags),0) AS cout
              FROM livraisons
              WHERE EXTRACT(YEAR FROM date_mission) = $1
                AND EXTRACT(MONTH FROM date_mission) = $2`,
-            [moisNb === 1 ? annee-1 : annee, moisNb === 1 ? 12 : moisNb-1]),
+            [anneePrec, moisNb === 1 ? 12 : moisNb - 1]),
     ]);
 
-    const chargesTotal  = parseFloat(chargesMonth.rows[0]?.total   || 0);
-    const extrasCamion  = parseFloat(extraCamion.rows[0]?.total    || 0);
-    const extrasGen     = parseFloat(extraGeneral.rows[0]?.total   || 0);
+    const chargesTotal  = parseFloat(chargesMonth.rows[0]?.total  || 0);
+    const chargesPTotal = parseFloat(chargesPrec.rows[0]?.total   || 0);
+    const extrasCamion  = parseFloat(extraCamion.rows[0]?.total   || 0);
+    const extrasGen     = parseFloat(extraGeneral.rows[0]?.total  || 0);
     const extrasTotal   = extrasCamion + extrasGen;
-    const caTotal       = parseFloat(kpi.rows[0]?.ca_total         || 0);
-    const coutDirect    = parseFloat(kpi.rows[0]?.cout_direct      || 0);
+    const caTotal       = parseFloat(kpi.rows[0]?.ca_total        || 0);
+    const coutDirect    = parseFloat(kpi.rows[0]?.cout_direct     || 0);
+
+    // Résultat = CA − coûts directs − charges fixes − extras
     const coutTotal     = coutDirect + chargesTotal + extrasTotal;
     const resultat      = caTotal - coutTotal;
 
     // Progression vs mois précédent
-    const caPrec        = parseFloat(precedent.rows[0]?.ca         || 0);
-    const coutPrec      = parseFloat(precedent.rows[0]?.cout       || 0);
-    const resultatPrec  = caPrec - coutPrec - chargesTotal;
+    const caPrec        = parseFloat(precedent.rows[0]?.ca        || 0);
+    const coutPrec      = parseFloat(precedent.rows[0]?.cout      || 0);
+    const resultatPrec  = caPrec - coutPrec - chargesPTotal - extrasTotal;
     const progression   = resultatPrec !== 0
       ? Math.round(((resultat - resultatPrec) / Math.abs(resultatPrec)) * 100)
       : (resultat > 0 ? 100 : 0);
