@@ -41,7 +41,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // ── POST /api/camions ──────────────────────────────────────────
 router.post('/', authenticate, [
   body('numero').trim().notEmpty().withMessage('Numéro requis')
-    .matches(/^[A-Z]{2}-\d{4}-[A-Z]$/).withMessage('Format : SN-XXXX-X'),
+    .matches(/^[A-Z]{2}-\d{3}-[A-Z]{2}$/).withMessage('Format : AA-XXX-YY (ex: SN-001-AB)'),
   body('statut').optional().isIn(['actif','panne','maintenance','vendu']),
   body('marque').optional().trim().isLength({ max: 50 }),
   body('modele').optional().trim().isLength({ max: 50 }),
