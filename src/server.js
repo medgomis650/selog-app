@@ -16,6 +16,9 @@ const { errorHandler } = require('./middleware/error');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// ── IMPORTANT : faire confiance au proxy Railway ──────────────
+app.set('trust proxy', 1);
+
 // ── Sécurité ──────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*', credentials: true }));
@@ -23,25 +26,21 @@ app.use(cors({ origin: process.env.CORS_ORIGIN || '*', credentials: true }));
 // ── Rate limiting ─────────────────────────────────────────────
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, max: 10,
-  message: { error: 'Trop de tentatives de connexion, réessayez dans 15 minutes' }
+  message: { error: 'Trop de tentatives, réessayez dans 15 minutes' }
 });
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, max: 200,
+  windowMs: 60 * 1000, max: 300,
   message: { error: 'Limite de requêtes atteinte' }
 });
 
 // ── Parsing ───────────────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
-
-// ── Logging ───────────────────────────────────────────────────
-if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
-}
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString(), env: process.env.NODE_ENV });
+  res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
 // ── Routes API ────────────────────────────────────────────────
@@ -56,10 +55,10 @@ app.use('/api/charges',    chargesRouter);
 app.use('/api/extra',      extraRouter);
 app.use('/api/users',      usersRouter);
 
-// ── Gestionnaire d'erreurs API ────────────────────────────────
+// ── Erreurs API ───────────────────────────────────────────────
 app.use('/api', errorHandler);
 
-// ── Frontend statique (AVANT le 404) ─────────────────────────
+// ── Frontend statique ─────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '../public')));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public', 'index.html'));
