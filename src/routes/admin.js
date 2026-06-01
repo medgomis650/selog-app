@@ -139,22 +139,50 @@ dashRouter.get('/', authenticate, async (req, res, next) => {
         GROUP BY 1,2,3 ORDER BY annee_nb, mois_nb`),
     ]);
 
-    // Charges fixes du mois
-    const chargesMonth = await query(
-      `SELECT COALESCE(SUM(montant), 0) AS total
-       FROM charges_fixes WHERE mois = TO_CHAR(TO_DATE($1::text, 'MM'), 'Month') AND annee = $2`,
-      [moisNb, annee]
-    );
-    const chargesTotal = parseFloat(chargesMonth.rows[0]?.total || 0);
-    const caTotal = parseFloat(kpi.rows[0]?.ca_total || 0);
-    const coutDirect = parseFloat(kpi.rows[0]?.cout_direct || 0);
+    // Charges fixes + extras + progression
+    const [chargesMonth, extraCamion, extraGeneral, precedent] = await Promise.all([
+      query(`SELECT COALESCE(SUM(montant), 0) AS total FROM charges_fixes
+             WHERE mois = TO_CHAR(TO_DATE($1::text, 'MM'), 'Month') AND annee = $2`,
+             [moisNb, annee]),
+      query(`SELECT COALESCE(SUM(montant), 0) AS total FROM extra_camion
+             WHERE EXTRACT(YEAR FROM date_depense) = $1 AND EXTRACT(MONTH FROM date_depense) = $2`,
+             [annee, moisNb]),
+      query(`SELECT COALESCE(SUM(montant), 0) AS total FROM extra_general`),
+      query(`SELECT COALESCE(SUM(prix_transport),0) AS ca,
+                    COALESCE(SUM(carburant+frais+ags),0) AS cout
+             FROM livraisons
+             WHERE EXTRACT(YEAR FROM date_mission) = $1
+               AND EXTRACT(MONTH FROM date_mission) = $2`,
+            [moisNb === 1 ? annee-1 : annee, moisNb === 1 ? 12 : moisNb-1]),
+    ]);
+
+    const chargesTotal  = parseFloat(chargesMonth.rows[0]?.total   || 0);
+    const extrasCamion  = parseFloat(extraCamion.rows[0]?.total    || 0);
+    const extrasGen     = parseFloat(extraGeneral.rows[0]?.total   || 0);
+    const extrasTotal   = extrasCamion + extrasGen;
+    const caTotal       = parseFloat(kpi.rows[0]?.ca_total         || 0);
+    const coutDirect    = parseFloat(kpi.rows[0]?.cout_direct      || 0);
+    const coutTotal     = coutDirect + chargesTotal + extrasTotal;
+    const resultat      = caTotal - coutTotal;
+
+    // Progression vs mois précédent
+    const caPrec        = parseFloat(precedent.rows[0]?.ca         || 0);
+    const coutPrec      = parseFloat(precedent.rows[0]?.cout       || 0);
+    const resultatPrec  = caPrec - coutPrec - chargesTotal;
+    const progression   = resultatPrec !== 0
+      ? Math.round(((resultat - resultatPrec) / Math.abs(resultatPrec)) * 100)
+      : (resultat > 0 ? 100 : 0);
 
     res.json({
       kpi: {
         ...kpi.rows[0],
         charges_fixes: chargesTotal,
-        cout_total: coutDirect + chargesTotal,
+        extras_total: extrasTotal,
+        cout_total: coutTotal,
         benefice_net: caTotal - coutDirect - chargesTotal,
+        resultat,
+        excedent: resultat >= 0,
+        progression,
       },
       par_camion: parCamion.rows,
       par_zone: parZone.rows,
