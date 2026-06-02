@@ -140,36 +140,32 @@ pannesRouter.delete('/:id', authenticate, requireAdmin, async (req, res, next) =
 // ── CHARGES FIXES ─────────────────────────────────────────────
 const chargesRouter = require('express').Router();
 
+// GET toutes les charges (annuelles)
 chargesRouter.get('/', authenticate, async (req, res, next) => {
   try {
-    const { mois, annee = new Date().getFullYear() } = req.query;
-    const conds = [`annee = $1`], vals = [parseInt(annee)];
-    if (mois) { vals.push(mois); conds.push(`mois = $2`); }
-    const { rows } = await query(
-      `SELECT * FROM charges_fixes WHERE ${conds.join(' AND ')} ORDER BY poste`, vals);
+    const { rows } = await query(`SELECT * FROM charges_fixes ORDER BY poste`);
     res.json(rows);
   } catch (err) { next(err); }
 });
 
+// PUT — upsert charges annuelles
 chargesRouter.put('/', authenticate, [
-  body('mois').notEmpty().withMessage('Mois requis'),
-  body('annee').isInt({ min: 2020 }).withMessage('Année requise'),
   body('charges').isArray().withMessage('Tableau de charges requis'),
   body('charges.*.poste').notEmpty(),
   body('charges.*.montant').isInt({ min: 0 }),
 ], validate, async (req, res, next) => {
   try {
-    const { mois, annee, charges } = req.body;
+    const { charges } = req.body;
+    const annee = new Date().getFullYear();
     const result = [];
     for (const c of charges) {
       const { rows } = await query(
-        `INSERT INTO charges_fixes (mois, annee, poste, montant, notes, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6)
+        `INSERT INTO charges_fixes (mois, annee, poste, montant, created_by)
+         VALUES ('Annuel', $1, $2, $3, $4)
          ON CONFLICT (mois, annee, poste)
-         DO UPDATE SET montant = EXCLUDED.montant, notes = EXCLUDED.notes,
-                       updated_at = NOW()
+         DO UPDATE SET montant = EXCLUDED.montant, updated_at = NOW()
          RETURNING *`,
-        [mois, annee, c.poste, c.montant, c.notes||null, req.user.id]
+        [annee, c.poste, c.montant, req.user.id]
       );
       result.push(rows[0]);
     }
@@ -177,6 +173,14 @@ chargesRouter.put('/', authenticate, [
   } catch (err) { next(err); }
 });
 
+// DELETE — supprimer une charge par ID
+chargesRouter.delete('/:id', authenticate, async (req, res, next) => {
+  try {
+    const { rows } = await query(`DELETE FROM charges_fixes WHERE id = $1 RETURNING id`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Charge introuvable' });
+    res.json({ message: 'Charge supprimee' });
+  } catch (err) { next(err); }
+});
 // ── EXTRA ─────────────────────────────────────────────────────
 const extraRouter = require('express').Router();
 

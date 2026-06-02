@@ -178,7 +178,12 @@ tbody td{padding:9px 11px;vertical-align:middle}
       <div class="topbar-title" id="page-title">Tableau de bord</div>
       <div class="topbar-right">
         <div class="api-badge"><span class="dot"></span> API connectée</div>
-        <span class="badge" id="month-badge"></span>
+        <div id="dash-nav" style="display:none;align-items:center;gap:6px">
+          <button onclick="changeDashMois(-1)" style="background:#f0f4f8;border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">‹</button>
+          <span id="month-badge" style="min-width:110px;text-align:center"></span>
+          <button onclick="changeDashMois(1)" style="background:#f0f4f8;border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">›</button>
+        </div>
+        <span id="month-badge-simple" class="badge"></span>
       </div>
     </div>
     <div id="content">
@@ -432,7 +437,9 @@ function showApp() {
   document.getElementById('sb-name').textContent = currentUser.nom;
   document.getElementById('sb-role').textContent = currentUser.role === 'admin' ? 'Administrateur' : 'Gestionnaire';
   if (currentUser.role === 'admin') document.getElementById('nav-users').style.display = 'flex';
-  document.getElementById('month-badge').textContent = new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  dashMois = new Date().getMonth() + 1;
+  dashAnnee = new Date().getFullYear();
+  renderDashBadge();
   loadDashboard();
 }
 
@@ -442,6 +449,8 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if (el) el.classList.add('active');
+  document.getElementById('dash-nav').style.display = id==='dashboard'?'flex':'none';
+  document.getElementById('month-badge-simple').style.display = id==='dashboard'?'none':'inline-flex';
   const titles = {dashboard:'Tableau de bord',livraisons:'Livraisons',flotte:'Flotte',chauffeurs:'Chauffeurs',pannes:'Pannes',charges:'Charges fixes',extra:'Extra',rapports:'Rapports',users:'Utilisateurs'};
   document.getElementById('page-title').textContent = titles[id] || id;
   const loaders = {dashboard:loadDashboard,livraisons:()=>{ populateCamionFilter(); loadLivraisons(); },flotte:loadFlotte,chauffeurs:loadChauffeurs,pannes:loadPannes,charges:loadCharges,extra:loadExtra,rapports:loadRapports,users:loadUsers};
@@ -457,8 +466,7 @@ function switchTab(id, el) {
 // ── DASHBOARD ─────────────────────────────────────────────────
 async function loadDashboard() {
   try {
-    const now = new Date();
-    const data = await apiFetch(`/api/dashboard?mois=${now.getMonth()+1}&annee=${now.getFullYear()}`);
+    const data = await apiFetch(`/api/dashboard?mois=${dashMois}&annee=${dashAnnee}`);
     if (!data) return;
     const k = data.kpi;
     document.getElementById('kpi-grid').innerHTML = [
@@ -551,7 +559,10 @@ async function loadLivraisons() {
       <td style="font-weight:600;color:#2d8a6e">${fmt(l.prix_transport)}</td>
       <td>${l.nom_client||'—'}</td>
       <td><span class="status ${l.statut==='Livré'?'livre':'transit'}">${l.statut}</span></td>
-      <td><button class="btn btn-outline btn-sm" onclick="deleteLivraison('${l.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-sm" onclick='editLivraison(${JSON.stringify(l)})'><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="deleteLivraison('${l.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+      </td>
     </tr>`).join('') || '<tr><td colspan="11" class="empty-row">Aucune livraison</td></tr>';
   } catch(e) { showToast(e.message,'error'); }
 }
@@ -573,6 +584,10 @@ async function loadFlotte() {
         <div style="margin-top:10px">
           <div class="progress"><div class="progress-bar" style="width:${Math.min(c.nb_missions*15,100)}%"></div></div>
         </div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick='editCamion(${JSON.stringify(c)})'><i class="ti ti-edit"></i> Modifier</button>
+          <button class="btn btn-outline btn-sm" onclick="deleteItem('/api/camions/${c.id}','camion',loadFlotte)"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+        </div>
       </div>`).join('') || '<p style="color:var(--muted)">Aucun camion</p>';
   } catch(e) { showToast(e.message,'error'); }
 }
@@ -585,7 +600,10 @@ async function loadChauffeurs() {
       <td>${i+1}</td><td><b>${c.nom}</b></td><td>${c.date_naissance||'—'}</td>
       <td>${c.telephone||'—'}</td><td style="font-family:monospace;font-size:11px">${c.numero_permis||'—'}</td>
       <td><span class="status ${c.statut}">${c.statut==='actif'?'Actif':'Inactif'}</span></td>
-      <td><button class="btn btn-outline btn-sm" onclick="deleteItem('/api/chauffeurs/${c.id}','chauffeur',loadChauffeurs)"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-sm" onclick='editChauffeur(${JSON.stringify(c)})'><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="deleteItem('/api/chauffeurs/${c.id}','chauffeur',loadChauffeurs)"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+      </td>
     </tr>`).join('') || '<tr><td colspan="7" class="empty-row">Aucun chauffeur</td></tr>';
   } catch(e) { showToast(e.message,'error'); }
 }
@@ -599,44 +617,64 @@ async function loadPannes() {
       <td>${p.nature_panne}</td><td>${fmt(p.cout_pieces)}</td><td>${fmt(p.main_oeuvre)}</td>
       <td>${p.nom_ouvrier||'—'}</td><td>${p.date_fin||'—'}</td>
       <td><b>${fmt(p.cout_total)} F</b></td>
-      <td><button class="btn btn-outline btn-sm" onclick="deleteItem('/api/pannes/${p.id}','panne',loadPannes)"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-sm" onclick='editPanne(${JSON.stringify(p)})'><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="deleteItem('/api/pannes/${p.id}','panne',loadPannes)"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+      </td>
     </tr>`).join('') || '<tr><td colspan="9" class="empty-row">Aucune panne</td></tr>';
   } catch(e) { showToast(e.message,'error'); }
 }
 
 // ── CHARGES ───────────────────────────────────────────────────
 const CHARGE_POSTES = ['Salaires','Assurances camions','Assurance études','Internet','Tontine','Dépenses famille','Électricité','GPS','Salle de sport','Divers'];
+let chargesData = [];
 async function loadCharges() {
-  const mois = document.getElementById('charge-mois').value;
   const annee = new Date().getFullYear();
-  const data = await apiFetch(`/api/charges?mois=${encodeURIComponent(mois)}&annee=${annee}`) || [];
-  const map = {};
-  data.forEach(c => map[c.poste] = c.montant);
-  document.getElementById('charges-form').innerHTML = CHARGE_POSTES.map(p=>`
-    <div class="form-group" style="margin-bottom:10px">
-      <label>${p}</label>
-      <input type="number" id="charge-${p.replace(/ /g,'_')}" value="${map[p]||0}" oninput="updateChargesSummary()">
+  chargesData = await apiFetch(`/api/charges?annee=${annee}`) || [];
+  renderChargesForm();
+}
+function renderChargesForm() {
+  if(!chargesData.length) {
+    document.getElementById('charges-form').innerHTML = '<p style="color:var(--muted);padding:20px;text-align:center">Aucune charge. Cliquez "+ Nouvelle charge" pour commencer.</p>';
+    document.getElementById('charges-summary').innerHTML = '';
+    return;
+  }
+  document.getElementById('charges-form').innerHTML = chargesData.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 12px;background:#f8fafc;border-radius:8px;border:1px solid var(--border)">
+      <div style="flex:1;font-size:13px;font-weight:500">${c.poste}</div>
+      <input type="number" id="charge-amt-${i}" value="${c.montant||0}" oninput="updateChargesSummary()"
+        style="width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;text-align:right">
+      <span style="font-size:12px;color:var(--muted);width:30px">F</span>
+      <button class="btn btn-outline btn-sm" onclick="deleteCharge('${c.id}')" title="Supprimer"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
     </div>`).join('');
   updateChargesSummary();
 }
 function updateChargesSummary() {
   let total = 0;
-  const rows = CHARGE_POSTES.map(p => {
-    const v = parseInt(document.getElementById('charge-'+p.replace(/ /g,'_'))?.value)||0;
+  const rows = chargesData.map((c,i) => {
+    const v = parseInt(document.getElementById('charge-amt-'+i)?.value)||0;
     total += v;
-    return `<div class="sum-row"><span>${p}</span><span>${fmt(v)} F</span></div>`;
+    return `<div class="sum-row"><span>${c.poste}</span><span>${fmt(v)} F</span></div>`;
   });
-  document.getElementById('charges-summary').innerHTML = rows.join('') +
-    `<div class="sum-row"><span>Total</span><span style="color:var(--danger)">${fmt(total)} F</span></div>`;
+  const el = document.getElementById('charges-summary');
+  if(el) el.innerHTML = rows.join('') +
+    `<div class="sum-row"><span>Total annuel</span><span style="color:var(--danger);font-weight:700">${fmt(total)} F</span></div>`;
 }
 async function saveCharges() {
-  const mois = document.getElementById('charge-mois').value;
   const annee = new Date().getFullYear();
-  const charges = CHARGE_POSTES.map(p => ({
-    poste: p, montant: parseInt(document.getElementById('charge-'+p.replace(/ /g,'_'))?.value)||0
+  const charges = chargesData.map((c,i) => ({
+    poste: c.poste,
+    montant: parseInt(document.getElementById('charge-amt-'+i)?.value)||0
   }));
-  await apiFetch('/api/charges', { method:'PUT', body: JSON.stringify({ mois, annee, charges }) });
+  await apiFetch('/api/charges', { method:'PUT', body: JSON.stringify({ mois:'Annuel', annee, charges }) });
+  await loadCharges();
   showToast('Charges enregistrées !');
+}
+async function deleteCharge(id) {
+  if(!confirm('Supprimer cette charge ?')) return;
+  await apiFetch('/api/charges/'+id, { method:'DELETE' });
+  await loadCharges();
+  showToast('Charge supprimée');
 }
 
 // ── EXTRA ─────────────────────────────────────────────────────
@@ -655,8 +693,7 @@ async function loadExtra() {
 
 // ── RAPPORTS ──────────────────────────────────────────────────
 async function loadRapports() {
-  const now = new Date();
-  const data = await apiFetch(`/api/dashboard?mois=${now.getMonth()+1}&annee=${now.getFullYear()}`);
+  const data = await apiFetch(`/api/dashboard?mois=${dashMois||new Date().getMonth()+1}&annee=${dashAnnee||new Date().getFullYear()}`);
   const total = data.par_camion.reduce((s,c)=>s+parseInt(c.ca),0)||1;
   document.getElementById('rapport-camion').innerHTML = data.par_camion.map(c=>`
     <div style="margin-bottom:10px">
@@ -768,6 +805,15 @@ async function openModal(id) {
       <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
       <button class="btn btn-primary" onclick="saveExtra1()">Ajouter</button>
     </div>`,
+    'add-charge':`<div class="modal-header"><div class="modal-title"><i class="ti ti-calculator" style="margin-right:6px;color:var(--accent)"></i>Nouvelle charge fixe</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>Intitulé du poste</label><input id="f-poste" placeholder="Ex: Assurance véhicule, Carburant bureau..."></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Montant annuel (F)</label><input type="number" id="f-montant-charge" placeholder="0"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveNewCharge()">Ajouter</button>
+    </div>`,
     'add-extra2':`<div class="modal-header"><div class="modal-title">Extra général</div><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid">
       <div class="form-group"><label>Nom</label><input id="f-nom"></div>
@@ -839,6 +885,18 @@ async function savePanne() {
     closeModal(); loadPannes(); showToast('Panne déclarée !');
   } catch(e) { showToast(e.message,'error'); }
 }
+async function saveNewCharge() {
+  const poste = v('f-poste');
+  const montant = parseInt(v('f-montant-charge'))||0;
+  if(!poste) { showToast('Entrez un intitulé','error'); return; }
+  const annee = new Date().getFullYear();
+  await apiFetch('/api/charges', { method:'PUT', body: JSON.stringify({
+    mois:'Annuel', annee, charges:[{ poste, montant }]
+  })});
+  closeModal();
+  await loadCharges();
+  showToast('Charge ajoutée !');
+}
 async function saveExtra1() {
   try {
     await apiFetch('/api/extra/camion', { method:'POST', body: JSON.stringify({
@@ -880,6 +938,161 @@ function showToast(msg, type='') {
   t.className = type==='error' ? 'error show' : 'show';
   clearTimeout(t._t);
   t._t = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── EDIT FUNCTIONS ────────────────────────────────────────────
+async function editLivraison(l) {
+  const cams = await apiFetch('/api/camions') || [];
+  const chaufs = await apiFetch('/api/chauffeurs') || [];
+  const camOpts = cams.map(c=>`<option value="${c.id}" ${c.id===l.camion_id?'selected':''}>${c.numero}</option>`).join('');
+  const chaufOpts = `<option value="">— aucun —</option>`+chaufs.map(c=>`<option value="${c.id}" ${c.id===l.chauffeur_id?'selected':''}>${c.nom}</option>`).join('');
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-header"><div class="modal-title"><i class="ti ti-edit" style="margin-right:6px;color:var(--accent)"></i>Modifier livraison</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${l.date_mission}"></div>
+      <div class="form-group"><label>Camion</label><select id="f-cam">${camOpts}</select></div>
+      <div class="form-group"><label>Chauffeur</label><select id="f-chauf">${chaufOpts}</select></div>
+      <div class="form-group"><label>N° Conteneur</label><input id="f-cont" value="${l.numero_conteneur||''}"></div>
+      <div class="form-group"><label>Type</label><select id="f-type">
+        ${['20 pieds','40 pieds','45 pieds'].map(t=>`<option ${t===l.type_conteneur?'selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Compagnie</label><input id="f-comp" value="${l.compagnie||''}"></div>
+      <div class="form-group"><label>Zone</label><input id="f-zone" value="${l.zone_livraison||''}"></div>
+      <div class="form-group"><label>Date retour</label><input type="date" id="f-retour" value="${l.date_retour||''}"></div>
+      <div class="form-group"><label>Prix transport (F)</label><input type="number" id="f-prix" value="${l.prix_transport||0}"></div>
+      <div class="form-group"><label>Carburant (F)</label><input type="number" id="f-carb" value="${l.carburant||0}"></div>
+      <div class="form-group"><label>Frais (F)</label><input type="number" id="f-frais" value="${l.frais||0}"></div>
+      <div class="form-group"><label>AGS (F)</label><input type="number" id="f-ags" value="${l.ags||0}"></div>
+      <div class="form-group"><label>Statut</label><select id="f-statut-edit">
+        ${['En transit','Livré','Annulé'].map(s=>`<option ${s===l.statut?'selected':''}>${s}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Client</label><input id="f-client" value="${l.nom_client||''}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="updateLivraison('${l.id}')"><i class="ti ti-check"></i> Enregistrer</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+async function updateLivraison(id) {
+  try {
+    await apiFetch('/api/livraisons/'+id, { method:'PATCH', body: JSON.stringify({
+      date_mission:v('f-date'), camion_id:v('f-cam'), chauffeur_id:v('f-chauf')||null,
+      numero_conteneur:v('f-cont'), type_conteneur:v('f-type'), compagnie:v('f-comp'),
+      zone_livraison:v('f-zone'), date_retour:v('f-retour')||null,
+      prix_transport:parseInt(v('f-prix'))||0, carburant:parseInt(v('f-carb'))||0,
+      frais:parseInt(v('f-frais'))||0, ags:parseInt(v('f-ags'))||0,
+      statut:v('f-statut-edit'), nom_client:v('f-client')
+    })});
+    closeModal(); loadLivraisons(); showToast('Livraison mise à jour !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+async function editCamion(c) {
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-header"><div class="modal-title"><i class="ti ti-truck" style="margin-right:6px;color:var(--accent)"></i>Modifier camion ${c.numero}</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Immatriculation</label><input id="f-immat" value="${c.numero}"></div>
+      <div class="form-group"><label>Statut</label><select id="f-statut-edit">
+        ${['actif','panne','maintenance','vendu'].map(s=>`<option value="${s}" ${s===c.statut?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Marque</label><input id="f-marque" value="${c.marque||''}"></div>
+      <div class="form-group"><label>Modèle</label><input id="f-modele" value="${c.modele||''}"></div>
+      <div class="form-group"><label>Année</label><input type="number" id="f-annee" value="${c.annee||''}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="updateCamion('${c.id}')"><i class="ti ti-check"></i> Enregistrer</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+async function updateCamion(id) {
+  try {
+    await apiFetch('/api/camions/'+id, { method:'PATCH', body: JSON.stringify({
+      statut:v('f-statut-edit'), marque:v('f-marque'), modele:v('f-modele'),
+      annee:parseInt(v('f-annee'))||undefined
+    })});
+    closeModal(); allCamions=[]; loadFlotte(); showToast('Camion mis à jour !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+async function editChauffeur(c) {
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-header"><div class="modal-title"><i class="ti ti-user" style="margin-right:6px;color:var(--accent)"></i>Modifier chauffeur</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>Nom et Prénom</label><input id="f-nom" value="${c.nom}"></div>
+      <div class="form-group"><label>Date de naissance</label><input type="date" id="f-dob" value="${c.date_naissance||''}"></div>
+      <div class="form-group"><label>Téléphone</label><input id="f-tel" value="${c.telephone||''}"></div>
+      <div class="form-group"><label>N° Permis</label><input id="f-perm" value="${c.numero_permis||''}"></div>
+      <div class="form-group"><label>Statut</label><select id="f-statut-edit">
+        ${['actif','inactif','suspendu'].map(s=>`<option value="${s}" ${s===c.statut?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+      </select></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="updateChauffeur('${c.id}')"><i class="ti ti-check"></i> Enregistrer</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+async function updateChauffeur(id) {
+  try {
+    await apiFetch('/api/chauffeurs/'+id, { method:'PATCH', body: JSON.stringify({
+      nom:v('f-nom'), date_naissance:v('f-dob')||null,
+      telephone:v('f-tel'), numero_permis:v('f-perm'), statut:v('f-statut-edit')
+    })});
+    closeModal(); loadChauffeurs(); showToast('Chauffeur mis à jour !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+async function editPanne(p) {
+  const cams = await apiFetch('/api/camions') || [];
+  const camOpts = cams.map(c=>`<option value="${c.id}" ${c.id===p.camion_id?'selected':''}>${c.numero}</option>`).join('');
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-header"><div class="modal-title"><i class="ti ti-tool" style="margin-right:6px;color:var(--danger)"></i>Modifier panne</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${p.date_panne}"></div>
+      <div class="form-group"><label>Camion</label><select id="f-cam">${camOpts}</select></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Nature</label><textarea id="f-nat" rows="2" style="padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical">${p.nature_panne}</textarea></div>
+      <div class="form-group"><label>Coût pièces (F)</label><input type="number" id="f-prix" value="${p.cout_pieces||0}"></div>
+      <div class="form-group"><label>Main d'œuvre (F)</label><input type="number" id="f-mo" value="${p.main_oeuvre||0}"></div>
+      <div class="form-group"><label>Ouvrier</label><input id="f-ouv" value="${p.nom_ouvrier||''}"></div>
+      <div class="form-group"><label>Date fin</label><input type="date" id="f-fin" value="${p.date_fin||''}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-danger" onclick="updatePanne('${p.id}')"><i class="ti ti-check"></i> Enregistrer</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+async function updatePanne(id) {
+  try {
+    await apiFetch('/api/pannes/'+id, { method:'PATCH', body: JSON.stringify({
+      date_panne:v('f-date'), camion_id:v('f-cam'), nature_panne:v('f-nat'),
+      cout_pieces:parseInt(v('f-prix'))||0, main_oeuvre:parseInt(v('f-mo'))||0,
+      nom_ouvrier:v('f-ouv'), date_fin:v('f-fin')||null
+    })});
+    closeModal(); loadPannes(); showToast('Panne mise à jour !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+// ── DASHBOARD NAVIGATION ──────────────────────────────────────
+let dashMois = new Date().getMonth() + 1;
+let dashAnnee = new Date().getFullYear();
+const MOIS_NOMS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+function renderDashBadge() {
+  const label = MOIS_NOMS[dashMois-1] + ' ' + dashAnnee;
+  const el = document.getElementById('month-badge');
+  const el2 = document.getElementById('month-badge-simple');
+  if(el) el.textContent = label;
+  if(el2) el2.textContent = label;
+}
+function changeDashMois(dir) {
+  dashMois += dir;
+  if(dashMois < 1){ dashMois = 12; dashAnnee--; }
+  if(dashMois > 12){ dashMois = 1; dashAnnee++; }
+  renderDashBadge();
+  loadDashboard();
 }
 
 // ── BOOT ──────────────────────────────────────────────────────
