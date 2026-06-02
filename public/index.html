@@ -552,7 +552,7 @@ async function loadLivraisons() {
     if (q) params.set('search', q);
     const data = await apiFetch('/api/livraisons?' + params);
     document.getElementById('tbl-livraisons').innerHTML = (data?.data||[]).map(l=>`<tr>
-      <td>${l.date_mission}</td><td><b>${l.camion_numero}</b></td><td>${l.chauffeur_nom||'—'}</td>
+      <td>${fmtDate(l.date_mission)}</td><td><b>${l.camion_numero}</b></td><td>${l.chauffeur_nom||'—'}</td>
       <td style="font-family:monospace;font-size:11px">${l.numero_conteneur}</td>
       <td>${l.type_conteneur}</td><td>${l.zone_livraison}</td>
       <td>${l.duree_mission!=null?l.duree_mission+'j':'—'}</td>
@@ -597,7 +597,7 @@ async function loadChauffeurs() {
   try {
     const data = await apiFetch('/api/chauffeurs') || [];
     document.getElementById('tbl-chauffeurs').innerHTML = data.map((c,i)=>`<tr>
-      <td>${i+1}</td><td><b>${c.nom}</b></td><td>${c.date_naissance||'—'}</td>
+      <td>${i+1}</td><td><b>${c.nom}</b></td><td>${fmtDate(c.date_naissance)}</td>
       <td>${c.telephone||'—'}</td><td style="font-family:monospace;font-size:11px">${c.numero_permis||'—'}</td>
       <td><span class="status ${c.statut}">${c.statut==='actif'?'Actif':'Inactif'}</span></td>
       <td style="display:flex;gap:4px">
@@ -613,9 +613,9 @@ async function loadPannes() {
   try {
     const data = await apiFetch('/api/pannes') || [];
     document.getElementById('tbl-pannes').innerHTML = data.map(p=>`<tr>
-      <td>${p.date_panne}</td><td><b style="color:var(--danger)">${p.camion_numero}</b></td>
+      <td>${fmtDate(p.date_panne)}</td><td><b style="color:var(--danger)">${p.camion_numero}</b></td>
       <td>${p.nature_panne}</td><td>${fmt(p.cout_pieces)}</td><td>${fmt(p.main_oeuvre)}</td>
-      <td>${p.nom_ouvrier||'—'}</td><td>${p.date_fin||'—'}</td>
+      <td>${p.nom_ouvrier||'—'}</td><td>${fmtDate(p.date_fin)}</td>
       <td><b>${fmt(p.cout_total)} F</b></td>
       <td style="display:flex;gap:4px">
         <button class="btn btn-outline btn-sm" onclick='editPanne(${JSON.stringify(p)})'><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
@@ -681,7 +681,7 @@ async function deleteCharge(id) {
 async function loadExtra() {
   const [e1,e2] = await Promise.all([apiFetch('/api/extra/camion'), apiFetch('/api/extra/general')]);
   document.getElementById('tbl-extra1').innerHTML = (e1||[]).map(e=>`<tr>
-    <td>${e.date_depense}</td><td>${e.camion_numero}</td><td>${e.motif}</td>
+    <td>${fmtDate(e.date_depense)}</td><td>${e.camion_numero}</td><td>${e.motif}</td>
     <td>${fmt(e.montant)} F</td>
     <td><button class="btn btn-outline btn-sm" onclick="deleteItem('/api/extra/camion/${e.id}','extra',loadExtra)"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
   </tr>`).join('') || '<tr><td colspan="5" class="empty-row">Aucun</td></tr>';
@@ -726,7 +726,7 @@ async function loadUsers() {
   document.getElementById('tbl-users').innerHTML = data.map((u,i)=>`<tr>
     <td>${i+1}</td><td><b>${u.username}</b></td><td>${u.nom}</td>
     <td><span class="badge" style="${u.role==='admin'?'':'background:#2d8a6e'}">${u.role}</span></td>
-    <td style="color:var(--muted);font-size:11px">${u.last_login||'Jamais'}</td>
+    <td style="color:var(--muted);font-size:11px">${u.last_login ? fmtDate(u.last_login) : 'Jamais'}</td>
     <td>${u.id!==currentUser?.id?`<button class="btn btn-outline btn-sm" onclick="deleteItem('/api/users/${u.id}','utilisateur',loadUsers)"><i class="ti ti-trash" style="color:var(--danger)"></i></button>`:'<span style="font-size:11px;color:var(--muted)">Vous</span>'}</td>
   </tr>`).join('');
 }
@@ -931,6 +931,17 @@ async function deleteItem(path, label, reload) {
 
 // ── UTILS ─────────────────────────────────────────────────────
 function v(id) { return document.getElementById(id)?.value || ''; }
+function fmtDate(d) {
+  if (!d) return '—';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt)) return d;
+    const day   = String(dt.getUTCDate()).padStart(2,'0');
+    const month = String(dt.getUTCMonth()+1).padStart(2,'0');
+    const year  = dt.getUTCFullYear();
+    return `${day}-${month}-${year}`;
+  } catch { return d; }
+}
 function fmt(n) { return parseInt(n||0).toLocaleString('fr-FR'); }
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
