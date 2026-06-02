@@ -117,6 +117,68 @@ tbody td{padding:9px 11px;vertical-align:middle}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty-row{text-align:center;padding:24px;color:var(--muted)}
+
+/* ── HAMBURGER ── */
+#menu-toggle{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--text)}
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+
+/* ── TABLETTE (≤900px) ── */
+@media (max-width:900px){
+  :root{--sidebar-w:200px}
+  .kpi-grid{grid-template-columns:repeat(3,1fr)}
+  #content{padding:14px}
+  .chart-bar{height:80px}
+}
+
+/* ── MOBILE (≤640px) ── */
+@media (max-width:640px){
+  :root{--sidebar-w:240px}
+  /* Sidebar cachée par défaut sur mobile */
+  #sidebar{transform:translateX(-100%);transition:transform .3s}
+  #sidebar.open{transform:translateX(0)}
+  #sidebar-overlay.open{display:block}
+  #main{margin-left:0}
+  /* Topbar mobile */
+  .topbar{padding:0 14px}
+  #menu-toggle{display:flex;align-items:center;justify-content:center}
+  .topbar-title{font-size:14px}
+  .api-badge{display:none}
+  /* Contenu */
+  #content{padding:12px 10px}
+  /* KPI : 2 colonnes sur mobile */
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+  .kpi-value{font-size:18px}
+  .kpi{padding:11px 12px}
+  /* Grilles 2 colonnes → 1 */
+  div[style*="grid-template-columns:1fr 1fr"]{display:block!important}
+  div[style*="grid-template-columns:1fr 1fr"] > *{margin-bottom:12px}
+  div[style*="grid-template-columns:1fr 300px"]{display:block!important}
+  div[style*="grid-template-columns:1fr 300px"] > *{margin-bottom:12px}
+  /* Cartes camion : 1 colonne */
+  .camion-grid{grid-template-columns:1fr 1fr;gap:8px}
+  /* Section titles */
+  .section-title{font-size:15px;margin-bottom:10px}
+  /* Boutons section header */
+  div[style*="justify-content:space-between"]{flex-wrap:wrap;gap:8px}
+  /* Carte objectif : colonnes */
+  div[style*="grid-template-columns:repeat(5,1fr)"]{grid-template-columns:repeat(2,1fr)!important;display:grid!important}
+  /* Modal plein écran */
+  .modal{max-width:100%;border-radius:12px;padding:16px;margin:0 4px}
+  .form-grid{grid-template-columns:1fr}
+  /* Filtre livraisons vertical */
+  .card div[style*="display:flex;gap:10px"]{flex-direction:column}
+  /* Toast */
+  #toast{left:12px;right:12px;bottom:12px}
+  /* Charges */
+  div[style*="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 12px"]{flex-wrap:wrap}
+}
+
+/* ── TRÈS PETIT (≤380px) ── */
+@media (max-width:380px){
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .kpi-value{font-size:16px}
+  .camion-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -175,7 +237,12 @@ tbody td{padding:9px 11px;vertical-align:middle}
 
   <div id="main">
     <div class="topbar">
-      <div class="topbar-title" id="page-title">Tableau de bord</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="menu-toggle" onclick="toggleSidebar()" title="Menu">
+          <i class="ti ti-menu-2" style="font-size:20px"></i>
+        </button>
+        <div class="topbar-title" id="page-title">Tableau de bord</div>
+      </div>
       <div class="topbar-right">
         <div class="api-badge"><span class="dot"></span> API connectée</div>
         <div id="dash-nav" style="display:none;align-items:center;gap:6px">
@@ -256,7 +323,7 @@ tbody td{padding:9px 11px;vertical-align:middle}
           </div>
         </div>
         <div class="card" style="padding:0"><div class="tbl-wrap"><table>
-          <thead><tr><th>Date</th><th>Camion</th><th>Chauffeur</th><th>Conteneur</th><th>Type</th><th>Zone</th><th>Durée</th><th>Prix</th><th>Client</th><th>Statut</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Camion</th><th>Chauffeur</th><th>Conteneur</th><th>Type</th><th>Compagnie</th><th>Zone</th><th>Date retour</th><th>Durée</th><th>Prix transport</th><th>Carburant</th><th>Frais</th><th>AGS</th><th>Total coûts</th><th>Client</th><th>Statut</th><th></th></tr></thead>
           <tbody id="tbl-livraisons"></tbody>
         </table></div></div>
       </div>
@@ -354,6 +421,7 @@ tbody td{padding:9px 11px;vertical-align:middle}
   </div>
 </div>
 
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
 <div id="modal-overlay" onclick="closeModalOutside(event)">
   <div class="modal" id="modal-content"></div>
 </div>
@@ -550,20 +618,40 @@ async function loadLivraisons() {
     if (cam) params.set('camion_id', cam);
     if (stat) params.set('statut', stat);
     if (q) params.set('search', q);
+    params.set('limit', '1000');
     const data = await apiFetch('/api/livraisons?' + params);
-    document.getElementById('tbl-livraisons').innerHTML = (data?.data||[]).map(l=>`<tr>
-      <td>${fmtDate(l.date_mission)}</td><td><b>${l.camion_numero}</b></td><td>${l.chauffeur_nom||'—'}</td>
+    const rows = data?.data||[];
+    // Totaux
+    const totCA    = rows.reduce((s,l)=>s+(l.prix_transport||0),0);
+    const totCarb  = rows.reduce((s,l)=>s+(l.carburant||0),0);
+    const totFrais = rows.reduce((s,l)=>s+(l.frais||0),0);
+    const totAGS   = rows.reduce((s,l)=>s+(l.ags||0),0);
+    const totCout  = totCarb+totFrais+totAGS;
+    document.getElementById('tbl-livraisons').innerHTML = rows.map(l=>{
+      const couts = (l.carburant||0)+(l.frais||0)+(l.ags||0);
+      return `<tr>
+      <td>${fmtDate(l.date_mission)}</td>
+      <td><b>${l.camion_numero}</b></td>
+      <td>${l.chauffeur_nom||'—'}</td>
       <td style="font-family:monospace;font-size:11px">${l.numero_conteneur}</td>
-      <td>${l.type_conteneur}</td><td>${l.zone_livraison}</td>
+      <td>${l.type_conteneur}</td>
+      <td>${l.compagnie||'—'}</td>
+      <td>${l.zone_livraison}</td>
+      <td>${fmtDate(l.date_retour)}</td>
       <td>${l.duree_mission!=null?l.duree_mission+'j':'—'}</td>
-      <td style="font-weight:600;color:#2d8a6e">${fmt(l.prix_transport)}</td>
+      <td style="font-weight:600;color:#2d8a6e">${fmt(l.prix_transport)} F</td>
+      <td style="color:#c0392b">${fmt(l.carburant)} F</td>
+      <td style="color:#c0392b">${fmt(l.frais)} F</td>
+      <td style="color:#c0392b">${fmt(l.ags)} F</td>
+      <td style="font-weight:600;color:#854d0e">${fmt(couts)} F</td>
       <td>${l.nom_client||'—'}</td>
       <td><span class="status ${l.statut==='Livré'?'livre':'transit'}">${l.statut}</span></td>
       <td style="display:flex;gap:4px">
         <button class="btn btn-outline btn-sm" onclick='editLivraison(${JSON.stringify(l)})'><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
         <button class="btn btn-outline btn-sm" onclick="deleteLivraison('${l.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="11" class="empty-row">Aucune livraison</td></tr>';
+    </tr>`;}).join('')
+    || '<tr><td colspan="17" class="empty-row">Aucune livraison enregistrée</td></tr>';
   } catch(e) { showToast(e.message,'error'); }
 }
 async function deleteLivraison(id) {
@@ -1105,6 +1193,23 @@ function changeDashMois(dir) {
   renderDashBadge();
   loadDashboard();
 }
+
+// ── SIDEBAR MOBILE ────────────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+// Fermer sidebar quand on clique un item nav sur mobile
+document.querySelectorAll('.nav-item').forEach(el => {
+  const orig = el.getAttribute('onclick');
+  el.addEventListener('click', () => {
+    if (window.innerWidth <= 640) closeSidebar();
+  });
+});
 
 // ── BOOT ──────────────────────────────────────────────────────
 if (accessToken && currentUser) showApp();
