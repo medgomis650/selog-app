@@ -729,7 +729,7 @@ async function loadLivraisons() {
       <td>${l.nom_client||'—'}</td>
       <td><span class="status ${l.statut==='Livré'?'livre':'transit'}">${l.statut}</span></td>
       <td style="display:flex;gap:4px">
-        <button class="btn btn-outline btn-sm" onclick='editLivraison(${JSON.stringify(l)})'><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="editLivraisonById('${l.id}')"><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
         <button class="btn btn-outline btn-sm" onclick="deleteLivraison('${l.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
       </td>
     </tr>`;}).join('')
@@ -743,9 +743,12 @@ async function deleteLivraison(id) {
 }
 
 // ── FLOTTE ────────────────────────────────────────────────────
+let _camsCache = {};
 async function loadFlotte() {
   try {
     const cams = await apiFetch('/api/camions') || [];
+    _camsCache = {};
+    cams.forEach(c => _camsCache[c.id] = c);
     document.getElementById('camion-grid').innerHTML = cams.map(c=>`
       <div class="camion-card ${c.statut==='panne'?'en-panne':''}">
         <div class="camion-num"><i class="ti ti-truck" style="font-size:12px;margin-right:4px"></i>${c.numero}</div>
@@ -755,10 +758,19 @@ async function loadFlotte() {
           <div class="progress"><div class="progress-bar" style="width:${Math.min(c.nb_missions*15,100)}%"></div></div>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px">
-          <button class="btn btn-outline btn-sm" style="flex:1" onclick='editCamion(${JSON.stringify(c)})'><i class="ti ti-edit"></i> Modifier</button>
-          <button class="btn btn-outline btn-sm" onclick="deleteItem('/api/camions/${c.id}','camion',loadFlotte)"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="editCamion(_camsCache['${c.id}'])"><i class="ti ti-edit"></i> Modifier</button>
+          <button class="btn btn-outline btn-sm" onclick="deleteCamion('${c.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
         </div>
       </div>`).join('') || '<p style="color:var(--muted)">Aucun camion</p>';
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function deleteCamion(id) {
+  if(!confirm('Supprimer ce camion ?')) return;
+  try {
+    await apiFetch('/api/camions/'+id, {method:'DELETE'});
+    allCamions = [];
+    loadFlotte();
+    showToast('Camion supprimé');
   } catch(e) { showToast(e.message,'error'); }
 }
 
@@ -771,8 +783,8 @@ async function loadChauffeurs() {
       <td>${c.telephone||'—'}</td><td style="font-family:monospace;font-size:11px">${c.numero_permis||'—'}</td>
       <td><span class="status ${c.statut}">${c.statut==='actif'?'Actif':'Inactif'}</span></td>
       <td style="display:flex;gap:4px">
-        <button class="btn btn-outline btn-sm" onclick='editChauffeur(${JSON.stringify(c)})'><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
-        <button class="btn btn-outline btn-sm" onclick="deleteItem('/api/chauffeurs/${c.id}','chauffeur',loadChauffeurs)"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="editChauffeurById('${c.id}')"><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="deleteChauffeur('${c.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
       </td>
     </tr>`).join('') || '<tr><td colspan="7" class="empty-row">Aucun chauffeur</td></tr>';
   } catch(e) { showToast(e.message,'error'); }
@@ -788,7 +800,7 @@ async function loadPannes() {
       <td>${p.nom_ouvrier||'—'}</td><td>${fmtDate(p.date_fin)}</td>
       <td><b>${fmt(p.cout_total)} F</b></td>
       <td style="display:flex;gap:4px">
-        <button class="btn btn-outline btn-sm" onclick='editPanne(${JSON.stringify(p)})'><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="editPanneById('${p.id}')"><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
         <button class="btn btn-outline btn-sm" onclick="deleteItem('/api/pannes/${p.id}','panne',loadPannes)"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
       </td>
     </tr>`).join('') || '<tr><td colspan="9" class="empty-row">Aucune panne</td></tr>';
@@ -1292,6 +1304,130 @@ document.querySelectorAll('.nav-item').forEach(el => {
     if (window.innerWidth <= 640) closeSidebar();
   });
 });
+
+// ── CACHES GLOBAUX POUR EDIT PAR ID ──────────────────────────
+let _livraisonsCache = {};
+let _pannesCache     = {};
+let _chauffeursCache = {};
+
+// Override loadChauffeurs pour alimenter le cache
+const _origLoadChauffeurs = loadChauffeurs;
+loadChauffeurs = async function() {
+  try {
+    const data = await apiFetch('/api/chauffeurs') || [];
+    _chauffeursCache = {};
+    data.forEach(c => _chauffeursCache[c.id] = c);
+    document.getElementById('tbl-chauffeurs').innerHTML = data.map((c,i)=>`<tr>
+      <td>${i+1}</td><td><b>${c.nom}</b></td><td>${fmtDate(c.date_naissance)}</td>
+      <td>${c.telephone||'—'}</td><td style="font-family:monospace;font-size:11px">${c.numero_permis||'—'}</td>
+      <td><span class="status ${c.statut}">${c.statut==='actif'?'Actif':'Inactif'}</span></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-sm" onclick="editChauffeurById('${c.id}')"><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="deleteChauffeur('${c.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty-row">Aucun chauffeur</td></tr>';
+  } catch(e) { showToast(e.message,'error'); }
+};
+
+async function editChauffeurById(id) {
+  const c = _chauffeursCache[id];
+  if (c) { editChauffeur(c); return; }
+  const data = await apiFetch('/api/chauffeurs/'+id);
+  if (data) editChauffeur(data);
+}
+async function deleteChauffeur(id) {
+  if(!confirm('Supprimer ce chauffeur ?')) return;
+  try { await apiFetch('/api/chauffeurs/'+id,{method:'DELETE'}); loadChauffeurs(); showToast('Chauffeur supprimé'); }
+  catch(e) { showToast(e.message,'error'); }
+}
+
+// Override loadLivraisons pour alimenter le cache
+const _origLoadLivraisons = loadLivraisons;
+loadLivraisons = async function() {
+  try {
+    const params = new URLSearchParams();
+    const cam = document.getElementById('f-camion')?.value;
+    const stat = document.getElementById('f-statut')?.value;
+    const q = document.getElementById('f-search')?.value;
+    if (cam) params.set('camion_id', cam);
+    if (stat) params.set('statut', stat);
+    if (q) params.set('search', q);
+    params.set('limit','1000');
+    const data = await apiFetch('/api/livraisons?' + params);
+    const rows = data?.data||[];
+    _livraisonsCache = {};
+    rows.forEach(l => _livraisonsCache[l.id] = l);
+    document.getElementById('tbl-livraisons').innerHTML = rows.map(l=>{
+      const typeShort = (l.type_conteneur||'').replace(' pieds','P').replace(' Pieds','P');
+      return `<tr>
+      <td>${fmtDate(l.date_mission)}</td>
+      <td><b>${l.camion_numero}</b></td>
+      <td>${l.chauffeur_nom||'—'}</td>
+      <td style="font-family:monospace">${l.numero_conteneur}</td>
+      <td>${typeShort}</td>
+      <td>${l.compagnie||'—'}</td>
+      <td>${l.zone_livraison}</td>
+      <td>${fmtDate(l.date_retour)}</td>
+      <td style="text-align:center">${l.duree_mission!=null?l.duree_mission+'j':'—'}</td>
+      <td style="font-weight:600;color:#2d8a6e;text-align:right">${fmt(l.prix_transport)}</td>
+      <td style="color:#c0392b;text-align:right">${fmt(parseInt(l.carburant)||0)}</td>
+      <td style="color:#c0392b;text-align:right">${fmt(parseInt(l.frais)||0)}</td>
+      <td style="color:#c0392b;text-align:right">${fmt(parseInt(l.ags)||0)}</td>
+      <td>${l.nom_client||'—'}</td>
+      <td><span class="status ${l.statut==='Livré'?'livre':'transit'}">${l.statut}</span></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-outline btn-sm" onclick="editLivraisonById('${l.id}')"><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+          <button class="btn btn-outline btn-sm" onclick="deleteLivraison('${l.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+        </div>
+      </td>
+    </tr>`;}).join('')
+    || '<tr><td colspan="16" class="empty-row">Aucune livraison enregistrée</td></tr>';
+  } catch(e) { showToast(e.message,'error'); }
+};
+
+async function editLivraisonById(id) {
+  const l = _livraisonsCache[id];
+  if (l) { editLivraison(l); return; }
+  const data = await apiFetch('/api/livraisons/'+id);
+  if (data) editLivraison(data);
+}
+
+// Override loadPannes pour alimenter le cache
+const _origLoadPannes = loadPannes;
+loadPannes = async function() {
+  try {
+    const data = await apiFetch('/api/pannes') || [];
+    _pannesCache = {};
+    data.forEach(p => _pannesCache[p.id] = p);
+    document.getElementById('tbl-pannes').innerHTML = data.map(p=>`<tr>
+      <td>${fmtDate(p.date_panne)}</td>
+      <td><b style="color:var(--danger)">${p.camion_numero}</b></td>
+      <td>${p.nature_panne}</td>
+      <td>${fmt(p.cout_pieces)}</td>
+      <td>${fmt(p.main_oeuvre)}</td>
+      <td>${p.nom_ouvrier||'—'}</td>
+      <td>${fmtDate(p.date_fin)}</td>
+      <td><b>${fmt(p.cout_total)} F</b></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-sm" onclick="editPanneById('${p.id}')"><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="deletePanne('${p.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="9" class="empty-row">Aucune panne</td></tr>';
+  } catch(e) { showToast(e.message,'error'); }
+};
+
+async function editPanneById(id) {
+  const p = _pannesCache[id];
+  if (p) { editPanne(p); return; }
+  const data = await apiFetch('/api/pannes/'+id);
+  if (data) editPanne(data);
+}
+async function deletePanne(id) {
+  if(!confirm('Supprimer cette panne ?')) return;
+  try { await apiFetch('/api/pannes/'+id,{method:'DELETE'}); loadPannes(); showToast('Panne supprimée'); }
+  catch(e) { showToast(e.message,'error'); }
+}
 
 // ── BOOT ──────────────────────────────────────────────────────
 if (accessToken && currentUser) showApp();
