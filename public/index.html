@@ -67,7 +67,7 @@ thead th{background:#f8fafc;padding:9px 11px;text-align:left;font-size:10px;font
 tbody tr{border-bottom:1px solid #f0f4f8;transition:.1s}
 tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:#fafcff}
-tbody td{padding:9px 11px;vertical-align:middle}
+tbody td{padding:9px 11px;vertical-align:middle;white-space:nowrap}
 .status{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
 .status.livre{background:#dcfce7;color:#166534}
 .status.transit{background:#fef9c3;color:#854d0e}
@@ -118,66 +118,92 @@ tbody td{padding:9px 11px;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty-row{text-align:center;padding:24px;color:var(--muted)}
 
+/* ── TABLES: no wrap, compact ── */
+tbody td{white-space:nowrap}
+thead th{white-space:nowrap}
+.tbl-wrap{-webkit-overflow-scrolling:touch}
+
 /* ── HAMBURGER ── */
 #menu-toggle{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--text)}
 #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
 
-/* ── TABLETTE (≤900px) ── */
-@media (max-width:900px){
+/* ── TABLE : jamais de retour à la ligne ── */
+td, th { white-space:nowrap }
+
+/* ── TABLETTE (≤960px) ── */
+@media (max-width:960px){
   :root{--sidebar-w:200px}
   .kpi-grid{grid-template-columns:repeat(3,1fr)}
   #content{padding:14px}
-  .chart-bar{height:80px}
 }
 
-/* ── MOBILE (≤640px) ── */
-@media (max-width:640px){
-  :root{--sidebar-w:240px}
-  /* Sidebar cachée par défaut sur mobile */
-  #sidebar{transform:translateX(-100%);transition:transform .3s}
+/* ── MOBILE (≤680px) ── */
+@media (max-width:680px){
+  :root{--sidebar-w:260px}
+  #sidebar{transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
   #sidebar.open{transform:translateX(0)}
   #sidebar-overlay.open{display:block}
   #main{margin-left:0}
-  /* Topbar mobile */
-  .topbar{padding:0 14px}
+  .topbar{padding:0 12px;gap:0}
   #menu-toggle{display:flex;align-items:center;justify-content:center}
-  .topbar-title{font-size:14px}
-  .api-badge{display:none}
-  /* Contenu */
-  #content{padding:12px 10px}
-  /* KPI : 2 colonnes sur mobile */
-  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
-  .kpi-value{font-size:18px}
-  .kpi{padding:11px 12px}
-  /* Grilles 2 colonnes → 1 */
-  div[style*="grid-template-columns:1fr 1fr"]{display:block!important}
-  div[style*="grid-template-columns:1fr 1fr"] > *{margin-bottom:12px}
-  div[style*="grid-template-columns:1fr 300px"]{display:block!important}
-  div[style*="grid-template-columns:1fr 300px"] > *{margin-bottom:12px}
-  /* Cartes camion : 1 colonne */
+  .topbar-title{font-size:13px}
+  .api-badge,.dash-nav-arrows{display:none}
+  #content{padding:10px 8px}
+  /* KPI 2 colonnes */
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:10px}
+  .kpi{padding:10px}
+  .kpi-value{font-size:17px}
+  .kpi-label{font-size:9px}
+  .kpi-sub{font-size:10px}
+  /* Grilles → stack */
+  div[style*="grid-template-columns:1fr 1fr"],
+  div[style*="grid-template-columns:1fr 300px"]{display:flex!important;flex-direction:column!important}
+  div[style*="grid-template-columns:1fr 1fr"] > *,
+  div[style*="grid-template-columns:1fr 300px"] > *{margin-bottom:10px!important;width:100%}
+  /* Cartes camion 2 colonnes */
   .camion-grid{grid-template-columns:1fr 1fr;gap:8px}
-  /* Section titles */
-  .section-title{font-size:15px;margin-bottom:10px}
-  /* Boutons section header */
+  .camion-num{font-size:12px}
+  /* Section */
+  .section-title{font-size:14px;margin-bottom:8px}
+  /* Header boutons wrap */
   div[style*="justify-content:space-between"]{flex-wrap:wrap;gap:8px}
-  /* Carte objectif : colonnes */
-  div[style*="grid-template-columns:repeat(5,1fr)"]{grid-template-columns:repeat(2,1fr)!important;display:grid!important}
-  /* Modal plein écran */
-  .modal{max-width:100%;border-radius:12px;padding:16px;margin:0 4px}
-  .form-grid{grid-template-columns:1fr}
-  /* Filtre livraisons vertical */
-  .card div[style*="display:flex;gap:10px"]{flex-direction:column}
+  /* Carte objectif 2 col */
+  div[style*="grid-template-columns:repeat(5,1fr)"]{grid-template-columns:repeat(2,1fr)!important;display:grid!important;gap:7px!important}
+  /* Modal */
+  #modal-overlay{padding:8px}
+  .modal{max-width:100%;border-radius:12px;padding:14px}
+  .form-grid{grid-template-columns:1fr!important}
+  /* Filtres livraisons */
+  .card div[style*="display:flex;gap:10px"]{flex-direction:column!important;gap:7px!important}
   /* Toast */
-  #toast{left:12px;right:12px;bottom:12px}
-  /* Charges */
-  div[style*="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 12px"]{flex-wrap:wrap}
+  #toast{left:8px;right:8px;bottom:8px;font-size:12px}
+  /* Charges inline */
+  div[style*="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px"]{flex-wrap:wrap}
+  /* Tables : scroll horizontal, lignes compactes */
+  .tbl-wrap{border-radius:6px}
+  table{font-size:11px}
+  thead th{padding:7px 8px;font-size:9px}
+  tbody td{padding:7px 8px}
+  .btn-sm{padding:4px 7px;font-size:10px}
+  .status{padding:2px 6px;font-size:9px}
+  /* Barre objectif label */
+  #obj-barre-label{font-size:10px}
+  /* Chart */
+  .chart-bar{height:70px}
+  .bar-val{font-size:8px}
+  .bar-label{font-size:8px}
+  /* Tabs */
+  .tab{padding:6px 10px;font-size:11px}
 }
 
-/* ── TRÈS PETIT (≤380px) ── */
-@media (max-width:380px){
-  .kpi-grid{grid-template-columns:1fr 1fr}
-  .kpi-value{font-size:16px}
+/* ── TRÈS PETIT (≤400px) — iPhone SE, petits Android ── */
+@media (max-width:400px){
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:6px}
+  .kpi-value{font-size:15px}
   .camion-grid{grid-template-columns:1fr}
+  #content{padding:8px 6px}
+  thead th{padding:6px 6px}
+  tbody td{padding:6px 6px}
 }
 </style>
 </head>
@@ -299,11 +325,11 @@ tbody td{padding:9px 11px;vertical-align:middle}
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="dash-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:12px"><i class="ti ti-chart-bar" style="color:#e8a020"></i> CA — Évolution</div><div class="chart-bar" id="chart-ca"></div></div>
           <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:12px"><i class="ti ti-truck" style="color:#2d8a6e"></i> CA par camion</div><div class="chart-bar" id="chart-camion"></div></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:0">
+        <div class="dash-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:0">
           <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:10px">Dernières livraisons</div><div class="tbl-wrap"><table><thead><tr><th>Camion</th><th>Conteneur</th><th>Zone</th><th>Statut</th></tr></thead><tbody id="dash-livraisons"></tbody></table></div></div>
           <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--danger)">Pannes récentes</div><div class="tbl-wrap"><table><thead><tr><th>Camion</th><th>Nature</th><th>Coût</th></tr></thead><tbody id="dash-pannes"></tbody></table></div></div>
         </div>
@@ -316,14 +342,14 @@ tbody td{padding:9px 11px;vertical-align:middle}
           <button class="btn btn-primary" onclick="openModal('add-livraison')"><i class="ti ti-plus"></i> Nouvelle livraison</button>
         </div>
         <div class="card" style="padding:10px 14px;margin-bottom:10px">
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="filter-row" style="display:flex;gap:10px;flex-wrap:wrap">
             <select id="f-camion" onchange="loadLivraisons()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none"><option value="">Tous camions</option></select>
             <select id="f-statut" onchange="loadLivraisons()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none"><option value="">Tous statuts</option><option>Livré</option><option>En transit</option></select>
             <input type="text" id="f-search" placeholder="Rechercher..." style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;flex:1;min-width:150px" oninput="loadLivraisons()">
           </div>
         </div>
         <div class="card" style="padding:0"><div class="tbl-wrap"><table>
-          <thead><tr><th>Date</th><th>Camion</th><th>Chauffeur</th><th>Conteneur</th><th>Type</th><th>Compagnie</th><th>Zone</th><th>Date retour</th><th>Durée</th><th>Prix transport</th><th>Carburant</th><th>Frais</th><th>AGS</th><th>Total coûts</th><th>Client</th><th>Statut</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Camion</th><th>Chauffeur</th><th>Conteneur</th><th>Type</th><th>Compagnie</th><th>Zone</th><th>Date retour</th><th>Durée</th><th>Prix transport</th><th>Carburant</th><th>Frais</th><th>AGS</th><th>Client</th><th>Statut</th><th></th></tr></thead>
           <tbody id="tbl-livraisons"></tbody>
         </table></div></div>
       </div>
@@ -372,7 +398,7 @@ tbody td{padding:9px 11px;vertical-align:middle}
             <button class="btn btn-success btn-sm" onclick="saveCharges()"><i class="ti ti-device-floppy"></i> Sauvegarder</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 300px;gap:14px">
+        <div class="dash-grid-charges" style="display:grid;grid-template-columns:1fr 300px;gap:14px">
           <div class="card"><div id="charges-form"></div></div>
           <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Résumé</div><div id="charges-summary"></div></div>
         </div>
@@ -628,22 +654,20 @@ async function loadLivraisons() {
     const totAGS   = rows.reduce((s,l)=>s+(l.ags||0),0);
     const totCout  = totCarb+totFrais+totAGS;
     document.getElementById('tbl-livraisons').innerHTML = rows.map(l=>{
-      const couts = (l.carburant||0)+(l.frais||0)+(l.ags||0);
       return `<tr>
       <td>${fmtDate(l.date_mission)}</td>
       <td><b>${l.camion_numero}</b></td>
       <td>${l.chauffeur_nom||'—'}</td>
       <td style="font-family:monospace;font-size:11px">${l.numero_conteneur}</td>
-      <td>${l.type_conteneur}</td>
+      <td>${l.type_conteneur.replace(" pieds","p")}</td>
       <td>${l.compagnie||'—'}</td>
       <td>${l.zone_livraison}</td>
       <td>${fmtDate(l.date_retour)}</td>
       <td>${l.duree_mission!=null?l.duree_mission+'j':'—'}</td>
-      <td style="font-weight:600;color:#2d8a6e">${fmt(l.prix_transport)} F</td>
-      <td style="color:#c0392b">${fmt(l.carburant)} F</td>
-      <td style="color:#c0392b">${fmt(l.frais)} F</td>
-      <td style="color:#c0392b">${fmt(l.ags)} F</td>
-      <td style="font-weight:600;color:#854d0e">${fmt(couts)} F</td>
+      <td style="font-weight:600;color:#2d8a6e">${fmt(l.prix_transport)}</td>
+      <td style="color:#c0392b">${fmt(l.carburant)}</td>
+      <td style="color:#c0392b">${fmt(l.frais)}</td>
+      <td style="color:#c0392b">${fmt(l.ags)}</td>
       <td>${l.nom_client||'—'}</td>
       <td><span class="status ${l.statut==='Livré'?'livre':'transit'}">${l.statut}</span></td>
       <td style="display:flex;gap:4px">
@@ -651,7 +675,7 @@ async function loadLivraisons() {
         <button class="btn btn-outline btn-sm" onclick="deleteLivraison('${l.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
       </td>
     </tr>`;}).join('')
-    || '<tr><td colspan="17" class="empty-row">Aucune livraison enregistrée</td></tr>';
+    || '<tr><td colspan="16" class='empty-row" >Aucune livraison enregistrée</td></tr>';
   } catch(e) { showToast(e.message,'error'); }
 }
 async function deleteLivraison(id) {
