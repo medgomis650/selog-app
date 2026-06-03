@@ -675,7 +675,7 @@ async function loadLivraisons() {
         <button class="btn btn-outline btn-sm" onclick="deleteLivraison('${l.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
       </td>
     </tr>`;}).join('')
-    || '<tr><td colspan="16" class='empty-row" >Aucune livraison enregistrée</td></tr>';
+    || '<tr><td colspan="16" class="empty-row">Aucune livraison enregistrée</td></tr>';
   } catch(e) { showToast(e.message,'error'); }
 }
 async function deleteLivraison(id) {
