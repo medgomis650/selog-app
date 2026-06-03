@@ -146,72 +146,96 @@ dashRouter.get('/', authenticate, async (req, res, next) => {
     const moisNomPrec = moisNb === 1 ? MOIS_FR[11] : MOIS_FR[moisNb - 2];
     const anneePrec   = moisNb === 1 ? annee - 1 : annee;
 
-    // Charges fixes + extras + précédent (tous en parallèle)
-    const [chargesMonth, chargesPrec, extraCamion, extraGeneral, precedent] = await Promise.all([
-      // Charges du mois courant — utilise le nom français exact
-      query(`SELECT COALESCE(SUM(montant), 0) AS total
-             FROM charges_fixes
-             WHERE LOWER(TRIM(mois)) = LOWER($1) AND annee = $2`,
-             [moisNom, annee]),
+    // ── Requêtes supplémentaires en parallèle ──
+    const [chargesQ, extraCamionQ, extraGenQ, pannesQ, precedentQ] = await Promise.all([
 
-      // Charges du mois précédent
-      query(`SELECT COALESCE(SUM(montant), 0) AS total
-             FROM charges_fixes
-             WHERE LOWER(TRIM(mois)) = LOWER($1) AND annee = $2`,
-             [moisNomPrec, anneePrec]),
+      // Charges fixes annuelles
+      query(`SELECT COALESCE(SUM(montant), 0) AS total FROM charges_fixes`),
 
       // Extra par camion du mois courant
       query(`SELECT COALESCE(SUM(montant), 0) AS total FROM extra_camion
              WHERE EXTRACT(YEAR FROM date_depense) = $1
-               AND EXTRACT(MONTH FROM date_depense) = $2`,
-             [annee, moisNb]),
+               AND EXTRACT(MONTH FROM date_depense) = $2`, [annee, moisNb]),
 
-      // Extra général (total cumulé)
+      // Extra général (cumulé)
       query(`SELECT COALESCE(SUM(montant), 0) AS total FROM extra_general`),
 
-      // CA + coûts directs du mois précédent (pour progression)
-      query(`SELECT COALESCE(SUM(prix_transport),0) AS ca,
-                    COALESCE(SUM(carburant+frais+ags),0) AS cout
+      // Total pannes du mois (pièces + main d'œuvre)
+      query(`SELECT COALESCE(SUM(cout_pieces + main_oeuvre), 0) AS total FROM pannes
+             WHERE EXTRACT(YEAR FROM date_panne) = $1
+               AND EXTRACT(MONTH FROM date_panne) = $2`, [annee, moisNb]),
+
+      // Données mois précédent (pour progression)
+      query(`SELECT
+               COALESCE(SUM(prix_transport),0) AS ca,
+               COALESCE(SUM(carburant+frais+ags),0) AS cout_direct
              FROM livraisons
              WHERE EXTRACT(YEAR FROM date_mission) = $1
                AND EXTRACT(MONTH FROM date_mission) = $2`,
-            [anneePrec, moisNb === 1 ? 12 : moisNb - 1]),
+            [moisNb === 1 ? annee-1 : annee, moisNb === 1 ? 12 : moisNb-1]),
     ]);
 
-    const chargesTotal  = parseFloat(chargesMonth.rows[0]?.total  || 0);
-    const chargesPTotal = parseFloat(chargesPrec.rows[0]?.total   || 0);
-    const extrasCamion  = parseFloat(extraCamion.rows[0]?.total   || 0);
-    const extrasGen     = parseFloat(extraGeneral.rows[0]?.total  || 0);
-    const extrasTotal   = extrasCamion + extrasGen;
-    const caTotal       = parseFloat(kpi.rows[0]?.ca_total        || 0);
-    const coutDirect    = parseFloat(kpi.rows[0]?.cout_direct     || 0);
+    const caTotal        = parseFloat(kpi.rows[0]?.ca_total     || 0);
+    const coutDirect     = parseFloat(kpi.rows[0]?.cout_direct  || 0); // carburant+frais+AGS
+    const dureeM         = parseFloat(kpi.rows[0]?.duree_moyenne|| 0);
+    const chargesTotal   = parseFloat(chargesQ.rows[0]?.total   || 0);
+    const extraCamionM   = parseFloat(extraCamionQ.rows[0]?.total|| 0);
+    const extraGenTotal  = parseFloat(extraGenQ.rows[0]?.total  || 0);
+    const pannesTotal    = parseFloat(pannesQ.rows[0]?.total    || 0);
 
-    // Résultat = CA − coûts directs − charges fixes − extras
-    const coutTotal     = coutDirect + chargesTotal + extrasTotal;
-    const resultat      = caTotal - coutTotal;
+    // ── Bénéfice HORS charges fixes ──
+    // = CA - carburant - frais - AGS - pannes - extra camion
+    const beneficeHorsCharges = caTotal - coutDirect - pannesTotal - extraCamionM;
 
-    // Progression vs mois précédent
-    const caPrec        = parseFloat(precedent.rows[0]?.ca        || 0);
-    const coutPrec      = parseFloat(precedent.rows[0]?.cout      || 0);
-    const resultatPrec  = caPrec - coutPrec - chargesPTotal - extrasTotal;
-    const progression   = resultatPrec !== 0
+    // ── Résultat mensuel (net complet) ──
+    // = CA - carburant - frais - AGS - pannes - tous extras - charges fixes
+    const tousExtras   = extraCamionM + extraGenTotal;
+    const resultat     = caTotal - coutDirect - pannesTotal - tousExtras - chargesTotal;
+
+    // ── Progression vs mois précédent ──
+    const caPrec       = parseFloat(precedentQ.rows[0]?.ca         || 0);
+    const coutPrec     = parseFloat(precedentQ.rows[0]?.cout_direct|| 0);
+    const resultatPrec = caPrec - coutPrec - pannesTotal - tousExtras - chargesTotal;
+    const progression  = resultatPrec !== 0
       ? Math.round(((resultat - resultatPrec) / Math.abs(resultatPrec)) * 100)
-      : (resultat > 0 ? 100 : 0);
+      : (resultat > 0 ? 100 : resultat === 0 ? 0 : -100);
+
+    // ── Statut du résultat ──
+    let statut_resultat, pct_objectif;
+    if (resultat === 0) {
+      statut_resultat = 'atteint';
+      pct_objectif    = 100;
+    } else if (resultat > 0) {
+      statut_resultat = 'excedent';
+      pct_objectif    = caTotal > 0 ? Math.round((resultat / caTotal) * 100) : 100;
+    } else {
+      statut_resultat = 'deficit';
+      pct_objectif    = caTotal > 0 ? Math.round((Math.abs(resultat) / caTotal) * 100) : 100;
+    }
 
     res.json({
       kpi: {
-        ...kpi.rows[0],
-        charges_fixes: chargesTotal,
-        extras_total: extrasTotal,
-        cout_total: coutTotal,
-        benefice_net: caTotal - coutDirect - chargesTotal,
+        // Indicateurs de base
+        nb_livraisons:       kpi.rows[0]?.nb_livraisons   || 0,
+        ca_total:            caTotal,
+        duree_moyenne:       dureeM.toFixed(1),
+        // Bénéfice hors charges fixes
+        benefice_hors_charges: beneficeHorsCharges,
+        // Coûts détaillés
+        cout_direct:         coutDirect,
+        pannes_total:        pannesTotal,
+        extra_camion:        extraCamionM,
+        extra_general:       extraGenTotal,
+        charges_fixes:       chargesTotal,
+        // Résultat final
         resultat,
-        excedent: resultat >= 0,
+        statut_resultat,
+        pct_objectif,
         progression,
       },
       par_camion: parCamion.rows,
-      par_zone: parZone.rows,
-      evolution: evolution.rows,
+      par_zone:   parZone.rows,
+      evolution:  evolution.rows,
     });
   } catch (err) { next(err); }
 });

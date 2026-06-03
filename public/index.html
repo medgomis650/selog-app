@@ -354,26 +354,30 @@ td, th { white-space:nowrap }
               </div>
               <div id="progression-badge" style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:4px"></div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
-              <div style="background:#f0f4f8;border-radius:8px;padding:10px 14px">
-                <div style="font-size:10px;color:#6b7c93;text-transform:uppercase;margin-bottom:4px">CA mensuel</div>
-                <div id="obj-ca" style="font-size:15px;font-weight:700;color:#1a3a5c">—</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
+              <div style="background:#f0f4f8;border-radius:8px;padding:9px 12px">
+                <div style="font-size:9px;color:#6b7c93;text-transform:uppercase;margin-bottom:3px">CA mensuel</div>
+                <div id="obj-ca" style="font-size:14px;font-weight:700;color:#1a3a5c">—</div>
               </div>
-              <div style="background:#fee2e2;border-radius:8px;padding:10px 14px">
-                <div style="font-size:10px;color:#6b7c93;text-transform:uppercase;margin-bottom:4px">Coûts directs</div>
-                <div id="obj-cout" style="font-size:15px;font-weight:700;color:#c0392b">—</div>
+              <div style="background:#fff0f0;border-radius:8px;padding:9px 12px">
+                <div style="font-size:9px;color:#6b7c93;text-transform:uppercase;margin-bottom:3px">Carb+Frais+AGS</div>
+                <div id="obj-cout" style="font-size:14px;font-weight:700;color:#c0392b">—</div>
               </div>
-              <div style="background:#fef9c3;border-radius:8px;padding:10px 14px">
-                <div style="font-size:10px;color:#6b7c93;text-transform:uppercase;margin-bottom:4px">Charges fixes</div>
-                <div id="obj-charges" style="font-size:15px;font-weight:700;color:#854d0e">—</div>
+              <div style="background:#fff0f0;border-radius:8px;padding:9px 12px">
+                <div style="font-size:9px;color:#6b7c93;text-transform:uppercase;margin-bottom:3px">Pannes</div>
+                <div id="obj-pannes" style="font-size:14px;font-weight:700;color:#c0392b">—</div>
               </div>
-              <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px">
-                <div style="font-size:10px;color:#6b7c93;text-transform:uppercase;margin-bottom:4px">Extra</div>
-                <div id="obj-extras" style="font-size:15px;font-weight:700;color:#166534">—</div>
+              <div style="background:#fef9c3;border-radius:8px;padding:9px 12px">
+                <div style="font-size:9px;color:#6b7c93;text-transform:uppercase;margin-bottom:3px">Charges fixes</div>
+                <div id="obj-charges" style="font-size:14px;font-weight:700;color:#854d0e">—</div>
               </div>
-              <div id="obj-result-box" style="border-radius:8px;padding:10px 14px">
-                <div style="font-size:10px;color:#6b7c93;text-transform:uppercase;margin-bottom:4px" id="obj-result-label">Résultat</div>
-                <div id="obj-resultat" style="font-size:20px;font-weight:700">—</div>
+              <div style="background:#fef9c3;border-radius:8px;padding:9px 12px">
+                <div style="font-size:9px;color:#6b7c93;text-transform:uppercase;margin-bottom:3px">Extras</div>
+                <div id="obj-extras" style="font-size:14px;font-weight:700;color:#854d0e">—</div>
+              </div>
+              <div id="obj-result-box" style="border-radius:8px;padding:9px 12px">
+                <div style="font-size:9px;color:#6b7c93;text-transform:uppercase;margin-bottom:3px" id="obj-result-label">Résultat</div>
+                <div id="obj-resultat" style="font-size:18px;font-weight:700">—</div>
               </div>
             </div>
             <div style="background:#f0f4f8;border-radius:6px;height:8px;overflow:hidden">
@@ -622,37 +626,63 @@ async function loadDashboard() {
     if (!data) return;
     const k = data.kpi;
     document.getElementById('kpi-grid').innerHTML = [
-      {label:'CA Mensuel',val:fmt(k.ca_total),sub:'FCFA',icon:'ti-trending-up'},
-      {label:'Bénéfice net',val:fmt(k.benefice_net),sub:'FCFA',icon:'ti-cash'},
-      {label:'Coût total',val:fmt(k.cout_total),sub:'FCFA',icon:'ti-receipt'},
-      {label:'Livraisons',val:k.nb_livraisons,sub:`${k.nb_livrees} livrées`,icon:'ti-package'},
-      {label:'Durée moyenne',val:parseFloat(k.duree_moyenne||0).toFixed(1),sub:'jours',icon:'ti-clock'},
-      {label:'En transit',val:k.nb_en_transit,sub:'conteneurs',icon:'ti-truck'},
-    ].map(x=>`<div class="kpi"><div class="kpi-label">${x.label}</div><div class="kpi-value">${x.val}</div><div class="kpi-sub">${x.sub}</div><i class="ti ${x.icon} kpi-icon"></i></div>`).join('');
+      {label:'CA Mensuel',          val:fmt(k.ca_total),                        sub:'FCFA',      icon:'ti-trending-up',   color:'#1a3a5c'},
+      {label:'Nb Livraisons',       val:k.nb_livraisons,                        sub:'ce mois',   icon:'ti-truck-delivery',color:'#2d8a6e'},
+      {label:'Bénéfice hors CF',    val:fmt(k.benefice_hors_charges),           sub:'CA−Carb−Fr−AGS−Panne−ExtraCam', icon:'ti-cash', color: k.benefice_hors_charges>=0?'#27ae60':'#c0392b'},
+      {label:'Durée moy. livraison',val:parseFloat(k.duree_moyenne||0)+' j',    sub:'jours',     icon:'ti-clock',         color:'#e8a020'},
+      {label:'Total pannes',        val:fmt(k.pannes_total),                    sub:'FCFA',      icon:'ti-tool',          color:'#c0392b'},
+    ].map(x=>`<div class="kpi" style="border-top:3px solid ${x.color}20">
+      <div class="kpi-label">${x.label}</div>
+      <div class="kpi-value" style="color:${x.color}">${x.val}</div>
+      <div class="kpi-sub">${x.sub}</div>
+      <i class="ti ${x.icon} kpi-icon"></i>
+    </div>`).join('');
 
-    // Carte Objectif
-    const r = k.resultat || 0;
-    const exc = r >= 0;
-    const prog = k.progression || 0;
-    document.getElementById('obj-ca').textContent = fmt(k.ca_total) + ' F';
-    document.getElementById('obj-cout').textContent = fmt(k.cout_direct) + ' F';
+    // ── Carte Résultat mensuel ──
+    const r      = k.resultat || 0;
+    const statut = k.statut_resultat || (r > 0 ? 'excedent' : r < 0 ? 'deficit' : 'atteint');
+    const pctObj = k.pct_objectif || 0;
+    const prog   = k.progression || 0;
+
+    // Couleurs & labels selon statut
+    const cfg = {
+      atteint:  {bg:'#f0fdf4', color:'#166534', badge:'🎯 Objectif atteint !', label:'OBJECTIF ATTEINT', barColor:'#16a34a'},
+      excedent: {bg:'#dcfce7', color:'#15803d', badge:'✅ Excédent',           label:'EXCÉDENT',         barColor:'#27ae60'},
+      deficit:  {bg:'#fee2e2', color:'#991b1b', badge:'⚠️ Déficit',            label:'DÉFICIT',          barColor:'#c0392b'},
+    }[statut];
+
+    document.getElementById('obj-ca').textContent      = fmt(k.ca_total) + ' F';
+    document.getElementById('obj-cout').textContent    = fmt(k.cout_direct) + ' F';
     document.getElementById('obj-charges').textContent = fmt(k.charges_fixes) + ' F';
-    document.getElementById('obj-extras').textContent = fmt(k.extras_total) + ' F';
-    document.getElementById('obj-resultat').textContent = (exc?'+':'') + fmt(r) + ' F';
-    document.getElementById('obj-resultat').style.color = exc ? '#27ae60' : '#c0392b';
-    document.getElementById('obj-result-box').style.background = exc ? '#dcfce7' : '#fee2e2';
-    document.getElementById('obj-result-label').textContent = exc ? 'EXCÉDENT' : 'DÉFICIT';
-    document.getElementById('objectif-badge').textContent = exc ? '✅ Excédent' : '⚠️ Déficit';
-    document.getElementById('objectif-badge').style.background = exc ? '#dcfce7' : '#fee2e2';
-    document.getElementById('objectif-badge').style.color = exc ? '#166534' : '#991b1b';
-    const progAbs = Math.abs(prog);
+    document.getElementById('obj-extras').textContent  = fmt((k.extra_camion||0)+(k.extra_general||0)) + ' F';
+    document.getElementById('obj-resultat').textContent= (r > 0?'+':r < 0?'-':'') + fmt(Math.abs(r)) + ' F';
+    document.getElementById('obj-resultat').style.color = cfg.color;
+    document.getElementById('obj-result-box').style.background = cfg.bg;
+    document.getElementById('obj-result-label').textContent = cfg.label;
+    document.getElementById('objectif-badge').textContent    = cfg.badge;
+    document.getElementById('objectif-badge').style.background = cfg.bg;
+    document.getElementById('objectif-badge').style.color      = cfg.color;
+
+    // Pannes dans la carte
+    const pannesEl = document.getElementById('obj-pannes');
+    if(pannesEl) pannesEl.textContent = fmt(k.pannes_total) + ' F';
+
+    // Progression
     const progColor = prog >= 0 ? '#27ae60' : '#c0392b';
-    const progIcon = prog >= 0 ? 'ti-trending-up' : 'ti-trending-down';
-    document.getElementById('progression-badge').innerHTML = `<i class="ti ${progIcon}" style="color:${progColor}"></i><span style="color:${progColor}">${prog >= 0?'+':''}${prog}% vs mois précédent</span>`;
-    const pct = Math.min(Math.abs(k.ca_total > 0 ? (r / k.ca_total * 100) : 0), 100);
-    document.getElementById('obj-barre').style.width = pct + '%';
-    document.getElementById('obj-barre').style.background = exc ? '#27ae60' : '#c0392b';
-    document.getElementById('obj-barre-label').textContent = `Résultat = ${pct.toFixed(1)}% du CA`;
+    const progIcon  = prog >= 0 ? 'ti-trending-up' : 'ti-trending-down';
+    const progLabel = statut === 'atteint'
+      ? '<span style="color:#16a34a">100% — Objectif parfait !</span>'
+      : `<i class="ti ${progIcon}" style="color:${progColor}"></i><span style="color:${progColor}">${prog>=0?'+':''}${prog}% vs mois préc.</span>`;
+    document.getElementById('progression-badge').innerHTML = progLabel;
+
+    // Barre
+    const barPct = Math.min(pctObj, 100);
+    document.getElementById('obj-barre').style.width      = barPct + '%';
+    document.getElementById('obj-barre').style.background = cfg.barColor;
+    document.getElementById('obj-barre-label').textContent =
+      statut === 'atteint' ? '100% — Objectif atteint !' :
+      statut === 'excedent' ? `Excédent = ${pctObj}% du CA` :
+      `Déficit = ${pctObj}% du CA`;
 
     // Charts
     const ev = data.evolution;
