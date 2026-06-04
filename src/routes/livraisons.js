@@ -77,7 +77,10 @@ router.get('/:id', authenticate, async (req, res, next) => {
 router.post('/', authenticate, [
   body('date_mission').isDate().withMessage('Date invalide'),
   body('camion_id').isUUID().withMessage('camion_id UUID requis'),
-  body('numero_conteneur').trim().notEmpty().withMessage('Numéro de conteneur requis'),
+  body('numero_conteneur')
+    .trim().notEmpty().withMessage('Numéro de conteneur requis')
+    .toUpperCase()
+    .matches(/^[A-Z]{4}[0-9]{7}$/).withMessage('Format invalide : 4 lettres + 7 chiffres (ex: MSCU1234567)'),
   body('zone_livraison').trim().notEmpty().withMessage('Zone de livraison requise'),
   body('prix_transport').isInt({ min: 0 }).withMessage('Prix invalide'),
   body('type_conteneur').optional().isIn(['20 pieds','40 pieds','45 pieds']),

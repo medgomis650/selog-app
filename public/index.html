@@ -625,16 +625,39 @@ async function loadDashboard() {
     const data = await apiFetch(`/api/dashboard?mois=${dashMois}&annee=${dashAnnee}`);
     if (!data) return;
     const k = data.kpi;
+    // Calculs KPI côté frontend
+    const _ca        = parseFloat(k.ca_total        || 0);
+    const _cout      = parseFloat(k.cout_direct     || 0);  // carburant+frais+AGS
+    const _pannes    = parseFloat(k.pannes_total    || 0);
+    const _extraCam  = parseFloat(k.extra_camion    || 0);
+    const _extraGen  = parseFloat(k.extra_general   || 0);
+    const _coutTotal = _cout + _pannes + _extraCam + _extraGen;  // coût total hors charges
+    const _benNet    = _ca - _cout;                               // bénéfice net = CA - coûts directs
+    const _benHorsChF= parseFloat(k.benefice_hors_charges || 0);
+
     document.getElementById('kpi-grid').innerHTML = [
-      {label:'CA Mensuel',          val:fmt(k.ca_total),                        sub:'FCFA',      icon:'ti-trending-up',   color:'#1a3a5c'},
-      {label:'Nb Livraisons',       val:k.nb_livraisons,                        sub:'ce mois',   icon:'ti-truck-delivery',color:'#2d8a6e'},
-      {label:'Bénéfice hors CF',    val:fmt(k.benefice_hors_charges),           sub:'CA−Carb−Fr−AGS−Panne−ExtraCam', icon:'ti-cash', color: k.benefice_hors_charges>=0?'#27ae60':'#c0392b'},
-      {label:'Durée moy. livraison',val:parseFloat(k.duree_moyenne||0)+' j',    sub:'jours',     icon:'ti-clock',         color:'#e8a020'},
-      {label:'Total pannes',        val:fmt(k.pannes_total),                    sub:'FCFA',      icon:'ti-tool',          color:'#c0392b'},
-    ].map(x=>`<div class="kpi" style="border-top:3px solid ${x.color}20">
+      // 1. CA mensuel
+      {label:'CA Mensuel',           val:fmt(_ca),        sub:'FCFA',   icon:'ti-trending-up',    color:'#1a3a5c'},
+      // 2. Nombre de livraisons
+      {label:'Nb Livraisons',        val:k.nb_livraisons, sub:'ce mois',icon:'ti-truck-delivery', color:'#2d8a6e'},
+      // 3. Bénéfice net = CA - coûts directs
+      {label:'Bénéfice net',         val:fmt(_benNet),    sub:'CA − Coûts directs', icon:'ti-cash',
+       color: _benNet >= 0 ? '#27ae60' : '#c0392b'},
+      // 4. Pannes du mois
+      {label:'Pannes',               val:fmt(_pannes),    sub:'FCFA',   icon:'ti-tool',            color:'#c0392b'},
+      // 5. Coût total = coût direct + pannes + extra
+      {label:'Coût total',           val:fmt(_coutTotal), sub:'Coûts directs+Pannes+Extra', icon:'ti-receipt',
+       color:'#854d0e'},
+      // 6. Bénéfice hors charges fixes
+      {label:'Bénéfice hors CF',     val:fmt(_benHorsChF),sub:'Hors charges fixes', icon:'ti-calculator',
+       color: _benHorsChF >= 0 ? '#16a34a' : '#dc2626'},
+      // 7. Durée moyenne livraison
+      {label:'Durée moy. livraison', val:parseFloat(k.duree_moyenne||0)+' j', sub:'jours', icon:'ti-clock',
+       color:'#e8a020'},
+    ].map(x=>`<div class="kpi" style="border-top:3px solid ${x.color}40">
       <div class="kpi-label">${x.label}</div>
-      <div class="kpi-value" style="color:${x.color}">${x.val}</div>
-      <div class="kpi-sub">${x.sub}</div>
+      <div class="kpi-value" style="color:${x.color};font-size:20px">${x.val}</div>
+      <div class="kpi-sub" style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.sub}</div>
       <i class="ti ${x.icon} kpi-icon"></i>
     </div>`).join('');
 
@@ -956,7 +979,12 @@ async function openModal(id) {
       <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${today}"></div>
       <div class="form-group"><label>Camion</label><select id="f-cam">${camOpts}</select></div>
       <div class="form-group"><label>Chauffeur</label><select id="f-chauf"><option value="">— aucun —</option>${chaufOpts}</select></div>
-      <div class="form-group"><label>N° Conteneur</label><input id="f-cont" placeholder="XXXX0000000"></div>
+      <div class="form-group"><label>N° Conteneur <span style="color:#e8a020;font-size:9px">4 lettres + 7 chiffres</span></label>
+        <input id="f-cont" placeholder="MSCU1234567" maxlength="11"
+          oninput="fmtConteneur(this)" onpaste="setTimeout(()=>fmtConteneur(this),0)"
+          style="letter-spacing:1px;font-family:monospace;text-transform:uppercase">
+        <span id="f-cont-err" style="font-size:10px;color:#c0392b;display:none">Format invalide (ex: MSCU1234567)</span>
+      </div>
       <div class="form-group"><label>Type</label><select id="f-type"><option>20 pieds</option><option>40 pieds</option><option>45 pieds</option></select></div>
       <div class="form-group"><label>Compagnie</label><input id="f-comp"></div>
       <div class="form-group"><label>Zone</label><input id="f-zone" placeholder="Dakar, Thiès..."></div>
@@ -1056,10 +1084,11 @@ function closeModalOutside(e) { if(e.target===document.getElementById('modal-ove
 
 // ── SAVE ──────────────────────────────────────────────────────
 async function saveLivraison() {
+  if (!validateConteneur()) { showToast('N° conteneur invalide : 4 lettres + 7 chiffres (ex: MSCU1234567)','error'); return; }
   try {
     await apiFetch('/api/livraisons', { method:'POST', body: JSON.stringify({
       date_mission: v('f-date'), camion_id: v('f-cam'), chauffeur_id: v('f-chauf')||undefined,
-      numero_conteneur: v('f-cont')||'XXXX0000000', type_conteneur: v('f-type'),
+      numero_conteneur: v('f-cont').toUpperCase(), type_conteneur: v('f-type'),
       compagnie: v('f-comp'), zone_livraison: v('f-zone')||'Dakar',
       prix_transport: parseInt(v('f-prix'))||0, carburant: parseInt(v('f-carb'))||0,
       frais: parseInt(v('f-frais'))||0, ags: parseInt(v('f-ags'))||0,
@@ -1143,6 +1172,34 @@ async function deleteItem(path, label, reload) {
 
 // ── UTILS ─────────────────────────────────────────────────────
 function v(id) { return document.getElementById(id)?.value || ''; }
+
+// ── Formatage automatique N° Conteneur (4 lettres + 7 chiffres) ──
+function fmtConteneur(input) {
+  // Supprimer espaces, accents, tout sauf lettres/chiffres
+  let val = input.value
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // retirer accents
+    .replace(/[^A-Za-z0-9]/g,'')                        // garder lettres+chiffres
+    .toUpperCase()
+    .slice(0,11);
+  input.value = val;
+  // Validation
+  const errEl = document.getElementById('f-cont-err');
+  const valid = /^[A-Z]{4}[0-9]{7}$/.test(val);
+  if (errEl) errEl.style.display = (val.length > 0 && !valid) ? 'block' : 'none';
+  input.style.borderColor = (val.length === 11 && !valid) ? '#c0392b' : (val.length === 11 ? '#27ae60' : '');
+  return valid;
+}
+
+function validateConteneur() {
+  const input = document.getElementById('f-cont');
+  if (!input) return true;
+  const val = input.value;
+  const valid = /^[A-Z]{4}[0-9]{7}$/.test(val);
+  const errEl = document.getElementById('f-cont-err');
+  if (errEl) errEl.style.display = valid ? 'none' : 'block';
+  input.style.borderColor = valid ? '#27ae60' : '#c0392b';
+  return valid;
+}
 function fmtDate(d) {
   if (!d) return '—';
   try {
@@ -1175,7 +1232,12 @@ async function editLivraison(l) {
       <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${l.date_mission}"></div>
       <div class="form-group"><label>Camion</label><select id="f-cam">${camOpts}</select></div>
       <div class="form-group"><label>Chauffeur</label><select id="f-chauf">${chaufOpts}</select></div>
-      <div class="form-group"><label>N° Conteneur</label><input id="f-cont" value="${l.numero_conteneur||''}"></div>
+      <div class="form-group"><label>N° Conteneur <span style="color:#e8a020;font-size:9px">4L+7C</span></label>
+        <input id="f-cont" value="${(l.numero_conteneur||'').toUpperCase()}" maxlength="11"
+          oninput="fmtConteneur(this)" onpaste="setTimeout(()=>fmtConteneur(this),0)"
+          style="letter-spacing:1px;font-family:monospace;text-transform:uppercase">
+        <span id="f-cont-err" style="font-size:10px;color:#c0392b;display:none">Format invalide (ex: MSCU1234567)</span>
+      </div>
       <div class="form-group"><label>Type</label><select id="f-type">
         ${['20 pieds','40 pieds','45 pieds'].map(t=>`<option ${t===l.type_conteneur?'selected':''}>${t}</option>`).join('')}
       </select></div>
@@ -1198,10 +1260,11 @@ async function editLivraison(l) {
   document.getElementById('modal-overlay').classList.add('open');
 }
 async function updateLivraison(id) {
+  if (!validateConteneur()) { showToast('N° conteneur invalide : 4 lettres + 7 chiffres (ex: MSCU1234567)','error'); return; }
   try {
     await apiFetch('/api/livraisons/'+id, { method:'PATCH', body: JSON.stringify({
       date_mission:v('f-date'), camion_id:v('f-cam'), chauffeur_id:v('f-chauf')||null,
-      numero_conteneur:v('f-cont'), type_conteneur:v('f-type'), compagnie:v('f-comp'),
+      numero_conteneur:v('f-cont').toUpperCase(), type_conteneur:v('f-type'), compagnie:v('f-comp'),
       zone_livraison:v('f-zone'), date_retour:v('f-retour')||null,
       prix_transport:parseInt(v('f-prix'))||0, carburant:parseInt(v('f-carb'))||0,
       frais:parseInt(v('f-frais'))||0, ags:parseInt(v('f-ags'))||0,
