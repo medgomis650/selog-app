@@ -140,15 +140,19 @@ pannesRouter.delete('/:id', authenticate, requireAdmin, async (req, res, next) =
 // ── CHARGES FIXES ─────────────────────────────────────────────
 const chargesRouter = require('express').Router();
 
-// GET toutes les charges (annuelles)
+// GET toutes les charges — dédoublonné par poste (garde le plus récent)
 chargesRouter.get('/', authenticate, async (req, res, next) => {
   try {
-    const { rows } = await query(`SELECT * FROM charges_fixes ORDER BY poste`);
+    const { rows } = await query(`
+      SELECT DISTINCT ON (LOWER(TRIM(poste))) *
+      FROM charges_fixes
+      ORDER BY LOWER(TRIM(poste)), updated_at DESC, created_at DESC
+    `);
     res.json(rows);
   } catch (err) { next(err); }
 });
 
-// PUT — upsert charges annuelles
+// PUT — upsert charges annuelles (un seul enregistrement par poste)
 chargesRouter.put('/', authenticate, [
   body('charges').isArray().withMessage('Tableau de charges requis'),
   body('charges.*.poste').notEmpty(),
@@ -159,6 +163,12 @@ chargesRouter.put('/', authenticate, [
     const annee = new Date().getFullYear();
     const result = [];
     for (const c of charges) {
+      // Supprimer tout ancien doublon sur ce poste avant d'insérer
+      await query(
+        `DELETE FROM charges_fixes WHERE LOWER(TRIM(poste)) = LOWER($1) AND id NOT IN (
+           SELECT id FROM charges_fixes WHERE LOWER(TRIM(poste)) = LOWER($1) ORDER BY created_at DESC LIMIT 1
+         )`, [c.poste]
+      );
       const { rows } = await query(
         `INSERT INTO charges_fixes (mois, annee, poste, montant, created_by)
          VALUES ('Annuel', $1, $2, $3, $4)
