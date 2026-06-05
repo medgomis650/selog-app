@@ -416,6 +416,38 @@ td, th { white-space:nowrap }
         </table></div></div>
       </div>
 
+      <!-- PRÉVISIONS -->
+      <div class="page" id="page-previsions">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title"><i class="ti ti-clipboard-list"></i> Prévisions</div>
+          <button class="btn btn-primary" onclick="openModal('add-prevision')"><i class="ti ti-plus"></i> Nouvelle prévision</button>
+        </div>
+        <div class="card" style="padding:10px 14px;margin-bottom:10px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <select id="prev-statut" onchange="loadPrevisions()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none">
+              <option value="">Tous statuts</option>
+              <option value="en_attente">En attente</option>
+              <option value="en_cours">En cours</option>
+              <option value="livre">Livré</option>
+              <option value="expire">Expiré</option>
+            </select>
+            <input type="text" id="prev-search" placeholder="N° facture, conteneur, destination..."
+              style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;flex:1;min-width:180px"
+              oninput="loadPrevisions()">
+          </div>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="tbl-wrap"><table>
+            <thead><tr>
+              <th>Date Fact.</th><th>N° Facture</th><th>N° BL</th>
+              <th>Conteneur</th><th>Type</th><th>Destination</th>
+              <th>Fin validité</th><th>Statut</th><th></th>
+            </tr></thead>
+            <tbody id="tbl-previsions"></tbody>
+          </table></div>
+        </div>
+      </div>
+
       <!-- FLOTTE -->
       <div class="page" id="page-flotte">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -607,9 +639,9 @@ function showPage(id, el) {
   if (el) el.classList.add('active');
   document.getElementById('dash-nav').style.display = id==='dashboard'?'flex':'none';
   document.getElementById('month-badge-simple').style.display = id==='dashboard'?'none':'inline-flex';
-  const titles = {dashboard:'Tableau de bord',livraisons:'Livraisons',flotte:'Flotte',chauffeurs:'Chauffeurs',pannes:'Pannes',charges:'Charges fixes',extra:'Extra',rapports:'Rapports',users:'Utilisateurs'};
+  const titles = {dashboard:'Tableau de bord',previsions:'Prévisions',livraisons:'Livraisons',flotte:'Flotte',chauffeurs:'Chauffeurs',pannes:'Pannes',charges:'Charges fixes',extra:'Extra',rapports:'Rapports',users:'Utilisateurs'};
   document.getElementById('page-title').textContent = titles[id] || id;
-  const loaders = {dashboard:loadDashboard,livraisons:()=>{ populateCamionFilter(); loadLivraisons(); },flotte:loadFlotte,chauffeurs:loadChauffeurs,pannes:loadPannes,charges:loadCharges,extra:loadExtra,rapports:loadRapports,users:loadUsers};
+  const loaders = {dashboard:loadDashboard,previsions:loadPrevisions,livraisons:()=>{ populateCamionFilter(); loadLivraisons(); },flotte:loadFlotte,chauffeurs:loadChauffeurs,pannes:loadPannes,charges:loadCharges,extra:loadExtra,rapports:loadRapports,users:loadUsers};
   if (loaders[id]) loaders[id]();
 }
 function switchTab(id, el) {
@@ -968,6 +1000,13 @@ async function loadUsers() {
 
 // ── MODALS ────────────────────────────────────────────────────
 async function openModal(id) {
+  // Prévision has its own async template
+  if (id === 'add-prevision') {
+    const tpl = await tpls['add-prevision']();
+    document.getElementById('modal-content').innerHTML = tpl;
+    document.getElementById('modal-overlay').classList.add('open');
+    return;
+  }
   const cams = await apiFetch('/api/camions') || [];
   const chaufs = await apiFetch('/api/chauffeurs') || [];
   const camOpts = cams.map(c=>`<option value="${c.id}">${c.numero}</option>`).join('');
@@ -988,6 +1027,17 @@ async function openModal(id) {
       <div class="form-group"><label>Type</label><select id="f-type"><option>20 pieds</option><option>40 pieds</option><option>45 pieds</option></select></div>
       <div class="form-group"><label>Compagnie</label><input id="f-comp"></div>
       <div class="form-group"><label>Zone</label><input id="f-zone" placeholder="Dakar, Thiès..."></div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>N° Facture <span style="color:#e8a020;font-size:9px">optionnel — auto-remplit le conteneur</span></label>
+        <div style="display:flex;gap:6px">
+          <input id="f-facture" placeholder="Ex: FACT-2025-001" style="flex:1"
+            oninput="searchPrevisionsByFacture()">
+          <button type="button" class="btn btn-outline btn-sm" onclick="searchPrevisionsByFacture()" style="flex-shrink:0">
+            <i class="ti ti-search"></i>
+          </button>
+        </div>
+        <div id="prev-results" style="display:none;margin-top:6px;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:180px;overflow-y:auto"></div>
+      </div>
       <div class="form-group"><label>Prix transport (F)</label><input type="number" id="f-prix"></div>
       <div class="form-group"><label>Carburant (F)</label><input type="number" id="f-carb"></div>
       <div class="form-group"><label>Frais (F)</label><input type="number" id="f-frais"></div>
@@ -998,6 +1048,34 @@ async function openModal(id) {
       <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
       <button class="btn btn-primary" onclick="saveLivraison()"><i class="ti ti-check"></i> Enregistrer</button>
     </div>`,
+    'add-prevision': async () => {
+      const today = new Date().toISOString().split('T')[0];
+      return `<div class="modal-header">
+        <div class="modal-title"><i class="ti ti-clipboard-list" style="margin-right:6px;color:var(--accent)"></i>Nouvelle prévision</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>Date facturation</label><input type="date" id="f-pfact" value="${today}"></div>
+        <div class="form-group"><label>N° Facture</label><input id="f-pfacnum" placeholder="FACT-2025-001"></div>
+        <div class="form-group"><label>N° BL</label><input id="f-pbl" placeholder="BL-001"></div>
+        <div class="form-group"><label>Destination</label><input id="f-pdest" placeholder="Dakar, Thiès..."></div>
+        <div class="form-group"><label>Date fin validité</label><input type="date" id="f-pexp"></div>
+        <div class="form-group"><label>N° Conteneur <span style="color:#e8a020;font-size:9px">4L+7C</span></label>
+          <input id="f-pcont" placeholder="MSCU1234567" maxlength="11"
+            oninput="fmtConteneur(this)" style="font-family:monospace;text-transform:uppercase">
+        </div>
+        <div class="form-group"><label>Type</label><select id="f-ptype">
+          <option>20 pieds</option><option>40 pieds</option><option>45 pieds</option>
+        </select></div>
+        <div class="form-group"><label>Compagnie</label><input id="f-pcomp" placeholder="MSC, CMA CGM..."></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+        <button class="btn btn-primary" onclick="savePrevision()">
+          <i class="ti ti-check"></i> Enregistrer
+        </button>
+      </div>`;
+    },
     'add-camion':`<div class="modal-header"><div class="modal-title">Ajouter un camion</div><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid">
       <div class="form-group"><label>Immatriculation</label><input id="f-immat" placeholder="SN-XXXX-X"></div>
@@ -1095,6 +1173,25 @@ async function saveLivraison() {
       nom_client: v('f-client')
     })});
     closeModal(); loadLivraisons(); showToast('Livraison enregistrée !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+async function savePrevision() {
+  const cont = v('f-pcont');
+  if (!/^[A-Z]{4}[0-9]{7}$/.test(cont)) {
+    showToast('N° conteneur invalide : 4 lettres + 7 chiffres','error'); return;
+  }
+  try {
+    await apiFetch('/api/previsions', { method:'POST', body: JSON.stringify({
+      date_facturation:  v('f-pfact'),
+      numero_facture:    v('f-pfacnum').toUpperCase().trim(),
+      numero_bl:         v('f-pbl')||null,
+      destination:       v('f-pdest')||null,
+      date_fin_validite: v('f-pexp')||null,
+      numero_conteneur:  cont,
+      type_conteneur:    v('f-ptype'),
+      compagnie:         v('f-pcomp')||null,
+    })});
+    closeModal(); loadPrevisions(); showToast('Prévision enregistrée !');
   } catch(e) { showToast(e.message,'error'); }
 }
 async function saveCamion() {
@@ -1519,6 +1616,153 @@ async function editPanneById(id) {
 async function deletePanne(id) {
   if(!confirm('Supprimer cette panne ?')) return;
   try { await apiFetch('/api/pannes/'+id,{method:'DELETE'}); loadPannes(); showToast('Panne supprimée'); }
+  catch(e) { showToast(e.message,'error'); }
+}
+
+// ── PRÉVISIONS ────────────────────────────────────────────────
+let _previsionsCache = {};
+
+async function loadPrevisions() {
+  try {
+    const params = new URLSearchParams();
+    const stat = document.getElementById('prev-statut')?.value;
+    const q = document.getElementById('prev-search')?.value;
+    if (stat) params.set('statut', stat);
+    if (q) params.set('search', q);
+    const data = await apiFetch('/api/previsions?' + params) || [];
+    _previsionsCache = {};
+    data.forEach(p => _previsionsCache[p.id] = p);
+    const statutCfg = {
+      en_attente: {label:'En attente', bg:'#fef9c3', color:'#854d0e'},
+      en_cours:   {label:'En cours',   bg:'#dbeafe', color:'#1e40af'},
+      livre:      {label:'Livré',      bg:'#dcfce7', color:'#166534'},
+      expire:     {label:'Expiré',     bg:'#fee2e2', color:'#991b1b'},
+    };
+    document.getElementById('tbl-previsions').innerHTML = data.map(p => {
+      const s = statutCfg[p.statut] || {label:p.statut, bg:'#f0f4f8', color:'#333'};
+      const today = new Date();
+      const expiry = p.date_fin_validite ? new Date(p.date_fin_validite) : null;
+      const expireSoon = expiry && (expiry - today) / (1000*3600*24) <= 7 && p.statut !== 'livre';
+      return `<tr style="${expireSoon?'background:#fff7ed':''}">
+        <td>${fmtDate(p.date_facturation)}</td>
+        <td><b style="color:#1a3a5c">${p.numero_facture}</b></td>
+        <td>${p.numero_bl||'—'}</td>
+        <td style="font-family:monospace;font-weight:600">${p.numero_conteneur}</td>
+        <td>${(p.type_conteneur||'').replace(' pieds','P')}</td>
+        <td>${p.destination||'—'}</td>
+        <td>${expireSoon?'⚠️ ':''}${fmtDate(p.date_fin_validite)}</td>
+        <td><span style="background:${s.bg};color:${s.color};padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">${s.label}</span></td>
+        <td>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-outline btn-sm" onclick="editPrevisionById('${p.id}')"><i class="ti ti-edit" style="color:#1a3a5c"></i></button>
+            <button class="btn btn-outline btn-sm" onclick="deletePrevision('${p.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="9" class="empty-row">Aucune prévision</td></tr>';
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+async function searchPrevisionsByFacture() {
+  const facture = document.getElementById('f-facture')?.value?.trim();
+  const resultsEl = document.getElementById('prev-results');
+  if (!facture || facture.length < 2) { if(resultsEl) resultsEl.style.display='none'; return; }
+  try {
+    const data = await apiFetch('/api/previsions/by-facture/'+encodeURIComponent(facture)) || [];
+    if (!resultsEl) return;
+    if (!data.length) {
+      resultsEl.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--muted)">Aucun conteneur trouvé pour ce n° facture</div>';
+      resultsEl.style.display = 'block';
+      return;
+    }
+    resultsEl.innerHTML = data.map(p => `
+      <div onclick="selectPrevisionConteneur(${JSON.stringify(p).replace(/"/g,'&quot;')})"
+        style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px"
+        onmouseover="this.style.background='#f0f4f8'" onmouseout="this.style.background=''">
+        <div>
+          <b style="font-family:monospace;font-size:13px">${p.numero_conteneur}</b>
+          <span style="color:var(--muted);margin-left:8px">${(p.type_conteneur||'').replace(' pieds','P')} · ${p.destination||'—'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${p.date_fin_validite ? `<span style="font-size:10px;color:var(--muted)">Exp: ${fmtDate(p.date_fin_validite)}</span>` : ''}
+          <span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:20px;font-size:10px">Sélectionner</span>
+        </div>
+      </div>`).join('');
+    resultsEl.style.display = 'block';
+  } catch(e) { console.error(e); }
+}
+
+function selectPrevisionConteneur(p) {
+  // Pré-remplir le formulaire livraison avec les données de la prévision
+  const contEl = document.getElementById('f-cont');
+  const typeEl = document.getElementById('f-type');
+  const compEl = document.getElementById('f-comp');
+  const zoneEl = document.getElementById('f-zone');
+  if (contEl) { contEl.value = p.numero_conteneur; fmtConteneur(contEl); }
+  if (typeEl && p.type_conteneur) typeEl.value = p.type_conteneur;
+  if (compEl && p.compagnie) compEl.value = p.compagnie;
+  if (zoneEl && p.destination) zoneEl.value = p.destination;
+  // Fermer le dropdown
+  const res = document.getElementById('prev-results');
+  if (res) res.style.display = 'none';
+  // Mettre le statut de la prévision en "en_cours"
+  apiFetch('/api/previsions/'+p.id, {method:'PATCH', body: JSON.stringify({statut:'en_cours'})});
+  showToast('Conteneur '+p.numero_conteneur+' sélectionné ✅');
+}
+
+async function editPrevisionById(id) {
+  const p = _previsionsCache[id] || await apiFetch('/api/previsions/'+id);
+  if (!p) return;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-clipboard-list" style="margin-right:6px;color:var(--accent)"></i>Modifier prévision</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date facturation</label><input type="date" id="f-pfact" value="${p.date_facturation?.split('T')[0]||''}"></div>
+      <div class="form-group"><label>N° Facture</label><input id="f-pfacnum" value="${p.numero_facture||''}"></div>
+      <div class="form-group"><label>N° BL</label><input id="f-pbl" value="${p.numero_bl||''}"></div>
+      <div class="form-group"><label>Destination</label><input id="f-pdest" value="${p.destination||''}"></div>
+      <div class="form-group"><label>Date fin validité</label><input type="date" id="f-pexp" value="${p.date_fin_validite?.split('T')[0]||''}"></div>
+      <div class="form-group"><label>N° Conteneur</label><input id="f-pcont" value="${p.numero_conteneur||''}" maxlength="11" oninput="fmtConteneur(this)" style="font-family:monospace;text-transform:uppercase"></div>
+      <div class="form-group"><label>Type</label><select id="f-ptype">
+        ${['20 pieds','40 pieds','45 pieds'].map(t=>`<option ${t===p.type_conteneur?'selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Compagnie</label><input id="f-pcomp" value="${p.compagnie||''}"></div>
+      <div class="form-group"><label>Statut</label><select id="f-pstatut">
+        <option value="en_attente" ${p.statut==='en_attente'?'selected':''}>En attente</option>
+        <option value="en_cours" ${p.statut==='en_cours'?'selected':''}>En cours</option>
+        <option value="livre" ${p.statut==='livre'?'selected':''}>Livré</option>
+        <option value="expire" ${p.statut==='expire'?'selected':''}>Expiré</option>
+      </select></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="updatePrevision('${p.id}')"><i class="ti ti-check"></i> Enregistrer</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function updatePrevision(id) {
+  try {
+    await apiFetch('/api/previsions/'+id, { method:'PATCH', body: JSON.stringify({
+      date_facturation: v('f-pfact'),
+      numero_facture:   v('f-pfacnum').toUpperCase().trim(),
+      numero_bl:        v('f-pbl')||null,
+      destination:      v('f-pdest')||null,
+      date_fin_validite:v('f-pexp')||null,
+      numero_conteneur: v('f-pcont').toUpperCase(),
+      type_conteneur:   v('f-ptype'),
+      compagnie:        v('f-pcomp')||null,
+      statut:           v('f-pstatut'),
+    })});
+    closeModal(); loadPrevisions(); showToast('Prévision mise à jour !');
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+async function deletePrevision(id) {
+  if(!confirm('Supprimer cette prévision ?')) return;
+  try { await apiFetch('/api/previsions/'+id, {method:'DELETE'}); loadPrevisions(); showToast('Prévision supprimée'); }
   catch(e) { showToast(e.message,'error'); }
 }
 

@@ -10,6 +10,7 @@ const authRoutes       = require('./routes/auth');
 const camionsRoutes    = require('./routes/camions');
 const livraisonsRoutes = require('./routes/livraisons');
 const { chauffeursRouter, pannesRouter, chargesRouter, extraRouter } = require('./routes/others');
+const previsionsRouter = require('./routes/previsions');
 const { usersRouter, dashRouter } = require('./routes/admin');
 const { errorHandler } = require('./middleware/error');
 
@@ -54,6 +55,7 @@ app.use('/api/pannes',     pannesRouter);
 app.use('/api/charges',    chargesRouter);
 app.use('/api/extra',      extraRouter);
 app.use('/api/users',      usersRouter);
+app.use('/api/previsions', previsionsRouter);
 
 // ── Erreurs API ───────────────────────────────────────────────
 app.use('/api', errorHandler);
