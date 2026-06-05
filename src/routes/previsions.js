@@ -69,7 +69,7 @@ router.post('/', authenticate, [
     .toUpperCase()
     .matches(/^[A-Z]{4}[0-9]{7}$/).withMessage('Format conteneur : 4 lettres + 7 chiffres'),
   body('type_conteneur').optional().isIn(['20 pieds','40 pieds','45 pieds']),
-  body('date_fin_validite').optional().isDate(),
+  body('date_fin_validite').optional({checkFalsy: true}).isDate().withMessage('Format date invalide'),
 ], validate, async (req, res, next) => {
   try {
     const {
@@ -97,7 +97,7 @@ router.post('/', authenticate, [
 router.patch('/:id', authenticate, [
   body('statut').optional().isIn(['en_attente','en_cours','livre','expire']),
   body('date_facturation').optional().isDate(),
-  body('date_fin_validite').optional().isDate(),
+  body('date_fin_validite').optional({checkFalsy: true}).isDate().withMessage('Format date invalide'),
 ], validate, async (req, res, next) => {
   try {
     const allowed = ['date_facturation','numero_facture','numero_bl','destination',
