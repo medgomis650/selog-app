@@ -1001,10 +1001,38 @@ async function loadUsers() {
 
 // ── MODALS ────────────────────────────────────────────────────
 async function openModal(id) {
-  // Prévision has its own async template
+  // Prévision — template inline (pas besoin des camions/chauffeurs)
   if (id === 'add-prevision') {
-    const tpl = await tpls['add-prevision']();
-    document.getElementById('modal-content').innerHTML = tpl;
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('modal-content').innerHTML = `
+      <div class="modal-header">
+        <div class="modal-title"><i class="ti ti-clipboard-list" style="margin-right:6px;color:var(--accent)"></i>Nouvelle prévision</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>Date facturation</label><input type="date" id="f-pfact" value="${today}"></div>
+        <div class="form-group"><label>N° Facture</label><input id="f-pfacnum" placeholder="FACT-2025-001"></div>
+        <div class="form-group"><label>N° BL</label><input id="f-pbl" placeholder="BL-001"></div>
+        <div class="form-group"><label>Destination</label><input id="f-pdest" placeholder="Dakar, Thiès..."></div>
+        <div class="form-group"><label>Date fin validité</label><input type="date" id="f-pexp"></div>
+        <div class="form-group">
+          <label>N° Conteneur <span style="color:#e8a020;font-size:9px">4 lettres + 7 chiffres</span></label>
+          <input id="f-pcont" placeholder="MSCU1234567" maxlength="11"
+            oninput="fmtConteneur(this)"
+            style="font-family:monospace;text-transform:uppercase;letter-spacing:1px">
+          <span id="f-cont-err" style="font-size:10px;color:#c0392b;display:none">Format invalide (ex: MSCU1234567)</span>
+        </div>
+        <div class="form-group"><label>Type</label><select id="f-ptype">
+          <option>20 pieds</option><option>40 pieds</option><option>45 pieds</option>
+        </select></div>
+        <div class="form-group"><label>Compagnie</label><input id="f-pcomp" placeholder="MSC, CMA CGM..."></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+        <button class="btn btn-primary" onclick="savePrevision()">
+          <i class="ti ti-check"></i> Enregistrer
+        </button>
+      </div>`;
     document.getElementById('modal-overlay').classList.add('open');
     return;
   }
@@ -1049,34 +1077,6 @@ async function openModal(id) {
       <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
       <button class="btn btn-primary" onclick="saveLivraison()"><i class="ti ti-check"></i> Enregistrer</button>
     </div>`,
-    'add-prevision': async () => {
-      const today = new Date().toISOString().split('T')[0];
-      return `<div class="modal-header">
-        <div class="modal-title"><i class="ti ti-clipboard-list" style="margin-right:6px;color:var(--accent)"></i>Nouvelle prévision</div>
-        <button class="modal-close" onclick="closeModal()">✕</button>
-      </div>
-      <div class="form-grid">
-        <div class="form-group"><label>Date facturation</label><input type="date" id="f-pfact" value="${today}"></div>
-        <div class="form-group"><label>N° Facture</label><input id="f-pfacnum" placeholder="FACT-2025-001"></div>
-        <div class="form-group"><label>N° BL</label><input id="f-pbl" placeholder="BL-001"></div>
-        <div class="form-group"><label>Destination</label><input id="f-pdest" placeholder="Dakar, Thiès..."></div>
-        <div class="form-group"><label>Date fin validité</label><input type="date" id="f-pexp"></div>
-        <div class="form-group"><label>N° Conteneur <span style="color:#e8a020;font-size:9px">4L+7C</span></label>
-          <input id="f-pcont" placeholder="MSCU1234567" maxlength="11"
-            oninput="fmtConteneur(this)" style="font-family:monospace;text-transform:uppercase">
-        </div>
-        <div class="form-group"><label>Type</label><select id="f-ptype">
-          <option>20 pieds</option><option>40 pieds</option><option>45 pieds</option>
-        </select></div>
-        <div class="form-group"><label>Compagnie</label><input id="f-pcomp" placeholder="MSC, CMA CGM..."></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
-        <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
-        <button class="btn btn-primary" onclick="savePrevision()">
-          <i class="ti ti-check"></i> Enregistrer
-        </button>
-      </div>`;
-    },
     'add-camion':`<div class="modal-header"><div class="modal-title">Ajouter un camion</div><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid">
       <div class="form-group"><label>Immatriculation</label><input id="f-immat" placeholder="SN-XXXX-X"></div>
