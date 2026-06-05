@@ -1633,25 +1633,63 @@ async function loadPrevisions() {
     const data = await apiFetch('/api/previsions?' + params) || [];
     _previsionsCache = {};
     data.forEach(p => _previsionsCache[p.id] = p);
+
     const statutCfg = {
       en_attente: {label:'En attente', bg:'#fef9c3', color:'#854d0e'},
       en_cours:   {label:'En cours',   bg:'#dbeafe', color:'#1e40af'},
       livre:      {label:'Livré',      bg:'#dcfce7', color:'#166534'},
       expire:     {label:'Expiré',     bg:'#fee2e2', color:'#991b1b'},
     };
-    document.getElementById('tbl-previsions').innerHTML = data.map(p => {
-      const s = statutCfg[p.statut] || {label:p.statut, bg:'#f0f4f8', color:'#333'};
-      const today = new Date();
-      const expiry = p.date_fin_validite ? new Date(p.date_fin_validite) : null;
-      const expireSoon = expiry && (expiry - today) / (1000*3600*24) <= 7 && p.statut !== 'livre';
-      return `<tr style="${expireSoon?'background:#fff7ed':''}">
+
+    // ── Calcul des jours restants + tri prioritaire ──
+    const now = new Date(); now.setHours(0,0,0,0);
+
+    function joursRestants(p) {
+      if (!p.date_fin_validite || ['livre','expire'].includes(p.statut)) return Infinity;
+      const exp = new Date(p.date_fin_validite); exp.setHours(0,0,0,0);
+      return Math.ceil((exp - now) / (1000*3600*24));
+    }
+
+    // Tri : 1j → 2j → autres (par date croissante) → déjà livrés/expirés
+    const sorted = [...data].sort((a, b) => {
+      const ja = joursRestants(a), jb = joursRestants(b);
+      if (ja === jb) return 0;
+      if (ja === Infinity && jb !== Infinity) return 1;
+      if (jb === Infinity && ja !== Infinity) return -1;
+      return ja - jb;
+    });
+
+    document.getElementById('tbl-previsions').innerHTML = sorted.map(p => {
+      const s  = statutCfg[p.statut] || {label:p.statut, bg:'#f0f4f8', color:'#333'};
+      const jr = joursRestants(p);
+      const actif = !['livre','expire'].includes(p.statut);
+
+      // ── Couleur de ligne selon urgence ──
+      let rowBg = '', rowBorder = '', urgenceIcon = '', urgenceLabel = '';
+      if (actif && jr <= 1) {
+        rowBg = '#fff0f0'; rowBorder = '3px solid #c0392b';
+        urgenceIcon = '🔴'; urgenceLabel = jr <= 0 ? 'Expiré !' : '1 jour !';
+      } else if (actif && jr === 2) {
+        rowBg = '#fff7ed'; rowBorder = '3px solid #e67e22';
+        urgenceIcon = '🟠'; urgenceLabel = '2 jours';
+      } else if (actif && jr !== Infinity) {
+        rowBg = '#f0fdf4'; rowBorder = '3px solid #27ae60';
+        urgenceIcon = '🟢'; urgenceLabel = jr + ' j';
+      }
+
+      const expiryDisplay = p.date_fin_validite
+        ? `<div style="font-size:11px">${fmtDate(p.date_fin_validite)}</div>
+           ${actif && jr !== Infinity ? `<div style="font-size:10px;font-weight:700;color:${jr<=1?'#c0392b':jr===2?'#e67e22':'#27ae60'}">${urgenceIcon} ${urgenceLabel}</div>` : ''}`
+        : '—';
+
+      return `<tr style="background:${rowBg};border-left:${rowBorder||'none'}">
         <td>${fmtDate(p.date_facturation)}</td>
         <td><b style="color:#1a3a5c">${p.numero_facture}</b></td>
         <td>${p.numero_bl||'—'}</td>
         <td style="font-family:monospace;font-weight:600">${p.numero_conteneur}</td>
         <td>${(p.type_conteneur||'').replace(' pieds','P')}</td>
         <td>${p.destination||'—'}</td>
-        <td>${expireSoon?'⚠️ ':''}${fmtDate(p.date_fin_validite)}</td>
+        <td>${expiryDisplay}</td>
         <td><span style="background:${s.bg};color:${s.color};padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">${s.label}</span></td>
         <td>
           <div style="display:flex;gap:4px">
