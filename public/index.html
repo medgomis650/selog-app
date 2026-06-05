@@ -1013,6 +1013,7 @@ async function openModal(id) {
         <div class="form-group"><label>Date facturation</label><input type="date" id="f-pfact" value="${today}"></div>
         <div class="form-group"><label>N° Facture</label><input id="f-pfacnum" placeholder="FACT-2025-001"></div>
         <div class="form-group"><label>N° BL</label><input id="f-pbl" placeholder="BL-001"></div>
+        <div class="form-group"><label>Client</label><input id="f-pclient" placeholder="Nom du client"></div>
         <div class="form-group"><label>Destination</label><input id="f-pdest" placeholder="Dakar, Thiès..."></div>
         <div class="form-group"><label>Date fin validité <span style="color:var(--muted);font-size:9px;font-weight:400">(optionnel)</span></label><input type="date" id="f-pexp" placeholder="JJ/MM/AAAA"></div>
         <div class="form-group">
@@ -1186,6 +1187,7 @@ async function savePrevision() {
       date_facturation:  v('f-pfact'),
       numero_facture:    v('f-pfacnum').toUpperCase().trim(),
       numero_bl:         v('f-pbl')||null,
+      nom_client:        v('f-pclient')||null,
       destination:       v('f-pdest')||null,
       date_fin_validite: v('f-pexp')||null,
       numero_conteneur:  cont,
@@ -1688,6 +1690,7 @@ async function loadPrevisions() {
         <td>${p.numero_bl||'—'}</td>
         <td style="font-family:monospace;font-weight:600">${p.numero_conteneur}</td>
         <td>${(p.type_conteneur||'').replace(' pieds','P')}</td>
+        <td>${p.nom_client||'—'}</td>
         <td>${p.destination||'—'}</td>
         <td>${expiryDisplay}</td>
         <td><span style="background:${s.bg};color:${s.color};padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">${s.label}</span></td>
@@ -1698,7 +1701,7 @@ async function loadPrevisions() {
           </div>
         </td>
       </tr>`;
-    }).join('') || '<tr><td colspan="9" class="empty-row">Aucune prévision</td></tr>';
+    }).join('') || '<tr><td colspan="10" class="empty-row">Aucune prévision</td></tr>';
   } catch(e) { showToast(e.message,'error'); }
 }
 
@@ -1761,6 +1764,7 @@ async function editPrevisionById(id) {
       <div class="form-group"><label>Date facturation</label><input type="date" id="f-pfact" value="${p.date_facturation?.split('T')[0]||''}"></div>
       <div class="form-group"><label>N° Facture</label><input id="f-pfacnum" value="${p.numero_facture||''}"></div>
       <div class="form-group"><label>N° BL</label><input id="f-pbl" value="${p.numero_bl||''}"></div>
+      <div class="form-group"><label>Client</label><input id="f-pclient" value="${p.nom_client||''}"></div>
       <div class="form-group"><label>Destination</label><input id="f-pdest" value="${p.destination||''}"></div>
       <div class="form-group"><label>Date fin validité <span style="color:var(--muted);font-size:9px;font-weight:400">(optionnel)</span></label><input type="date" id="f-pexp" value="${p.date_fin_validite?.split('T')[0]||''}"></div>
       <div class="form-group"><label>N° Conteneur</label><input id="f-pcont" value="${p.numero_conteneur||''}" maxlength="11" oninput="fmtConteneur(this)" style="font-family:monospace;text-transform:uppercase"></div>
@@ -1788,6 +1792,7 @@ async function updatePrevision(id) {
       date_facturation: v('f-pfact'),
       numero_facture:   v('f-pfacnum').toUpperCase().trim(),
       numero_bl:        v('f-pbl')||null,
+      nom_client:       v('f-pclient')||null,
       destination:      v('f-pdest')||null,
       date_fin_validite:v('f-pexp')||null,
       numero_conteneur: v('f-pcont').toUpperCase(),

@@ -73,19 +73,20 @@ router.post('/', authenticate, [
 ], validate, async (req, res, next) => {
   try {
     const {
-      date_facturation, numero_facture, numero_bl, destination,
+      date_facturation, numero_facture, numero_bl, nom_client, destination,
       date_fin_validite, numero_conteneur, type_conteneur = '20 pieds',
       compagnie, notes
     } = req.body;
     const { rows } = await query(`
       INSERT INTO previsions
-        (date_facturation, numero_facture, numero_bl, destination,
+        (date_facturation, numero_facture, numero_bl, nom_client, destination,
          date_fin_validite, numero_conteneur, type_conteneur,
          compagnie, notes, created_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING *`,
       [date_facturation, numero_facture.toUpperCase().trim(),
-       numero_bl||null, destination||null, date_fin_validite||null,
+       numero_bl||null, nom_client||null, destination||null,
+       date_fin_validite||null,
        numero_conteneur.toUpperCase().trim(), type_conteneur,
        compagnie||null, notes||null, req.user.id]
     );
@@ -100,7 +101,7 @@ router.patch('/:id', authenticate, [
   body('date_fin_validite').optional({checkFalsy: true}).isDate().withMessage('Format date invalide'),
 ], validate, async (req, res, next) => {
   try {
-    const allowed = ['date_facturation','numero_facture','numero_bl','destination',
+    const allowed = ['date_facturation','numero_facture','numero_bl','nom_client','destination',
       'date_fin_validite','numero_conteneur','type_conteneur','compagnie','statut',
       'livraison_id','notes'];
     const sets = [], vals = [];
