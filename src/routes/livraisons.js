@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { query } = require('../db/pool');
 const { authenticate } = require('../middleware/auth');
-const { body, query: qParam, validationResult } = require('express-validator');
+const { body, validationResult } = require('express-validator');
 
 const validate = (req, res, next) => {
   const err = validationResult(req);
@@ -9,18 +9,42 @@ const validate = (req, res, next) => {
   next();
 };
 
+// ── Mapping statut livraison → statut prévision ────────────────
+const STATUT_MAP = {
+  'En transit': 'en_cours',
+  'Livré':      'livre',
+  'Annulé':     'en_attente',
+};
+
+// ── Synchronise la prévision correspondante ────────────────────
+async function syncPrevision(numero_conteneur, statut_livraison, livraison_id) {
+  if (!numero_conteneur || !statut_livraison) return;
+  const statutPrev = STATUT_MAP[statut_livraison];
+  if (!statutPrev) return;
+  try {
+    await query(`
+      UPDATE previsions
+      SET statut       = $1,
+          livraison_id = $2,
+          updated_at   = NOW()
+      WHERE UPPER(TRIM(numero_conteneur)) = UPPER(TRIM($3))
+        AND statut NOT IN ('expire')
+    `, [statutPrev, livraison_id || null, numero_conteneur]);
+  } catch (e) {
+    console.error('[SYNC PREV] Erreur:', e.message);
+  }
+}
+
 // ── GET /api/livraisons ────────────────────────────────────────
-// Query params: camion_id, chauffeur_id, statut, mois, annee, search, limit, offset
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { camion_id, chauffeur_id, statut, mois, annee, search,
             limit = 50, offset = 0 } = req.query;
-
     const conds = [], vals = [];
-    if (camion_id)    { vals.push(camion_id);    conds.push(`l.camion_id = $${vals.length}`); }
-    if (chauffeur_id) { vals.push(chauffeur_id); conds.push(`l.chauffeur_id = $${vals.length}`); }
-    if (statut)       { vals.push(statut);       conds.push(`l.statut = $${vals.length}`); }
-    if (mois)         { vals.push(parseInt(mois)); conds.push(`EXTRACT(MONTH FROM l.date_mission) = $${vals.length}`); }
+    if (camion_id)    { vals.push(camion_id);      conds.push(`l.camion_id = $${vals.length}`); }
+    if (chauffeur_id) { vals.push(chauffeur_id);   conds.push(`l.chauffeur_id = $${vals.length}`); }
+    if (statut)       { vals.push(statut);          conds.push(`l.statut = $${vals.length}`); }
+    if (mois)         { vals.push(parseInt(mois));  conds.push(`EXTRACT(MONTH FROM l.date_mission) = $${vals.length}`); }
     if (annee)        { vals.push(parseInt(annee)); conds.push(`EXTRACT(YEAR FROM l.date_mission) = $${vals.length}`); }
     if (search) {
       vals.push(`%${search}%`);
@@ -29,31 +53,23 @@ router.get('/', authenticate, async (req, res, next) => {
                 OR l.zone_livraison ILIKE $${vals.length}
                 OR c.numero ILIKE $${vals.length})`);
     }
-
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     vals.push(parseInt(limit), parseInt(offset));
-
     const { rows } = await query(`
-      SELECT
-        l.*,
-        c.numero  AS camion_numero,
-        ch.nom    AS chauffeur_nom
+      SELECT l.*, c.numero AS camion_numero, ch.nom AS chauffeur_nom
       FROM livraisons l
-      LEFT JOIN camions   c  ON c.id  = l.camion_id
+      LEFT JOIN camions    c  ON c.id = l.camion_id
       LEFT JOIN chauffeurs ch ON ch.id = l.chauffeur_id
       ${where}
       ORDER BY l.date_mission DESC
       LIMIT $${vals.length - 1} OFFSET $${vals.length}
     `, vals);
-
-    // Total pour pagination
     const { rows: countRows } = await query(
       `SELECT COUNT(*) FROM livraisons l
        LEFT JOIN camions c ON c.id = l.camion_id
        LEFT JOIN chauffeurs ch ON ch.id = l.chauffeur_id ${where}`,
       vals.slice(0, -2)
     );
-
     res.json({ data: rows, total: parseInt(countRows[0].count), limit, offset });
   } catch (err) { next(err); }
 });
@@ -64,10 +80,9 @@ router.get('/:id', authenticate, async (req, res, next) => {
     const { rows } = await query(`
       SELECT l.*, c.numero AS camion_numero, ch.nom AS chauffeur_nom
       FROM livraisons l
-      LEFT JOIN camions    c  ON c.id  = l.camion_id
+      LEFT JOIN camions    c  ON c.id = l.camion_id
       LEFT JOIN chauffeurs ch ON ch.id = l.chauffeur_id
-      WHERE l.id = $1`, [req.params.id]
-    );
+      WHERE l.id = $1`, [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Livraison introuvable' });
     res.json(rows[0]);
   } catch (err) { next(err); }
@@ -80,7 +95,7 @@ router.post('/', authenticate, [
   body('numero_conteneur')
     .trim().notEmpty().withMessage('Numéro de conteneur requis')
     .toUpperCase()
-    .matches(/^[A-Z]{4}[0-9]{7}$/).withMessage('Format invalide : 4 lettres + 7 chiffres (ex: MSCU1234567)'),
+    .matches(/^[A-Z]{4}[0-9]{7}$/).withMessage('Format invalide : 4 lettres + 7 chiffres'),
   body('zone_livraison').trim().notEmpty().withMessage('Zone de livraison requise'),
   body('prix_transport').isInt({ min: 0 }).withMessage('Prix invalide'),
   body('type_conteneur').optional().isIn(['20 pieds','40 pieds','45 pieds']),
@@ -109,7 +124,12 @@ router.post('/', authenticate, [
        prix_transport, carburant, frais, ags, nom_client||null,
        statut, notes||null, req.user.id]
     );
-    res.status(201).json(rows[0]);
+    const livraison = rows[0];
+
+    // ── Synchroniser la prévision correspondante ──
+    await syncPrevision(numero_conteneur, statut, livraison.id);
+
+    res.status(201).json(livraison);
   } catch (err) { next(err); }
 });
 
@@ -136,17 +156,36 @@ router.patch('/:id', authenticate, [
       `UPDATE livraisons SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`, vals
     );
     if (!rows.length) return res.status(404).json({ error: 'Livraison introuvable' });
-    res.json(rows[0]);
+    const livraison = rows[0];
+
+    // ── Synchroniser la prévision si statut ou conteneur a changé ──
+    if (req.body.statut || req.body.numero_conteneur) {
+      await syncPrevision(livraison.numero_conteneur, livraison.statut, livraison.id);
+    }
+
+    res.json(livraison);
   } catch (err) { next(err); }
 });
 
 // ── DELETE /api/livraisons/:id ─────────────────────────────────
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
+    // Récupérer le conteneur avant suppression pour remettre la prévision en attente
+    const { rows: liv } = await query(
+      `SELECT numero_conteneur FROM livraisons WHERE id = $1`, [req.params.id]);
     const { rows } = await query(
-      `DELETE FROM livraisons WHERE id = $1 RETURNING id`, [req.params.id]
-    );
+      `DELETE FROM livraisons WHERE id = $1 RETURNING id`, [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Livraison introuvable' });
+
+    // Remettre la prévision en "en_attente" si la livraison est supprimée
+    if (liv.length) {
+      await query(`
+        UPDATE previsions SET statut = 'en_attente', livraison_id = NULL, updated_at = NOW()
+        WHERE UPPER(TRIM(numero_conteneur)) = UPPER(TRIM($1))
+          AND statut NOT IN ('expire','livre')
+      `, [liv[0].numero_conteneur]);
+    }
+
     res.json({ message: 'Livraison supprimée', id: rows[0].id });
   } catch (err) { next(err); }
 });
