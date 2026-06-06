@@ -993,34 +993,101 @@ async function loadExtra() {
 
 // ── RAPPORTS ──────────────────────────────────────────────────
 async function loadRapports() {
-  const data = await apiFetch(`/api/dashboard?mois=${dashMois||new Date().getMonth()+1}&annee=${dashAnnee||new Date().getFullYear()}`);
-  const total = data.par_camion.reduce((s,c)=>s+parseInt(c.ca),0)||1;
-  document.getElementById('rapport-camion').innerHTML = data.par_camion.map(c=>`
-    <div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-        <span><b>${c.numero}</b> — ${c.nb_missions} missions</span>
-        <span style="color:#2d8a6e;font-weight:600">${fmt(c.ca)} F</span>
-      </div>
-      <div class="progress"><div class="progress-bar" style="width:${Math.round(c.ca/total*100)}%;background:var(--primary)"></div></div>
-    </div>`).join('') || '<p style="color:var(--muted)">Aucune donnée</p>';
-  const chaufs = await apiFetch('/api/chauffeurs') || [];
-  const livs = (await apiFetch('/api/livraisons?limit=200'))?.data || [];
-  document.getElementById('rapport-chauffeur').innerHTML = chaufs.map(ch=>{
-    const n = livs.filter(l=>l.chauffeur_id===ch.id).length;
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f4f8;font-size:12px">
-      <span>${ch.nom}</span><span class="badge" style="background:var(--primary)">${n} missions</span>
+  try {
+    const now = new Date();
+
+    // Appels séparés pour éviter les problèmes de Promise.all
+    const data    = await apiFetch(`/api/dashboard?mois=${dashMois||now.getMonth()+1}&annee=${dashAnnee||now.getFullYear()}`);
+    const pannes  = await apiFetch('/api/pannes') || [];
+    const livsAll = await apiFetch('/api/livraisons?limit=1000');
+    const chaufs  = await apiFetch('/api/chauffeurs') || [];
+    const livs    = livsAll?.data || [];
+
+    const total = (data?.par_camion||[]).reduce((s,c)=>s+parseInt(c.ca||0),0)||1;
+
+    // ── Performance par camion ──
+    document.getElementById('rapport-camion').innerHTML = (data?.par_camion||[]).map(c=>`
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span><b>${c.numero}</b> — ${c.nb_missions} missions</span>
+          <span style="color:#2d8a6e;font-weight:600">${fmt(parseInt(c.ca||0))} F</span>
+        </div>
+        <div class="progress"><div class="progress-bar" style="width:${Math.round(parseInt(c.ca||0)/total*100)}%;background:var(--primary)"></div></div>
+      </div>`).join('') || '<p style="color:var(--muted);font-size:12px">Aucune livraison ce mois</p>';
+
+    // ── Par chauffeur ──
+    document.getElementById('rapport-chauffeur').innerHTML = chaufs.map(ch=>{
+      const cliv = livs.filter(l=>l.chauffeur_id===ch.id);
+      const ca   = cliv.reduce((s,l)=>s+parseInt(l.prix_transport||0),0);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f4f8;font-size:12px">
+        <span>${ch.nom}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="color:#2d8a6e;font-size:11px">${fmt(ca)} F</span>
+          <span class="badge" style="background:var(--primary)">${cliv.length} missions</span>
+        </div>
+      </div>`;
+    }).join('') || '<p style="color:var(--muted);font-size:12px">Aucun chauffeur</p>';
+
+    // ── Pannes par camion ──
+    const pannesByCam = {};
+    (Array.isArray(pannes) ? pannes : []).forEach(p => {
+      const k = p.camion_numero || '?';
+      if (!pannesByCam[k]) pannesByCam[k] = {num:k, nb:0, total:0};
+      pannesByCam[k].nb++;
+      pannesByCam[k].total += parseInt(p.cout_total||0);
+    });
+    const pannesArr = Object.values(pannesByCam).sort((a,b)=>b.total-a.total);
+    const maxPanne  = pannesArr.reduce((m,p)=>Math.max(m,p.total),1);
+    document.getElementById('rapport-pannes').innerHTML = pannesArr.length
+      ? pannesArr.map(p=>`
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+            <span><b>${p.num}</b> — ${p.nb} panne${p.nb>1?'s':''}</span>
+            <span style="color:var(--danger);font-weight:600">${fmt(p.total)} F</span>
+          </div>
+          <div class="progress"><div class="progress-bar" style="width:${Math.round(p.total/maxPanne*100)}%;background:var(--danger)"></div></div>
+        </div>`).join('')
+      : '<p style="color:var(--muted);font-size:12px">Aucune panne enregistrée</p>';
+
+    // ── Bénéfice par camion ──
+    const benByCam = {};
+    livs.forEach(l => {
+      const k = l.camion_numero || '?';
+      if (!benByCam[k]) benByCam[k] = {num:k, ca:0, cout:0, nb:0};
+      benByCam[k].ca   += parseInt(l.prix_transport||0);
+      benByCam[k].cout += parseInt(l.carburant||0)+parseInt(l.frais||0)+parseInt(l.ags||0);
+      benByCam[k].nb++;
+    });
+    const benArr = Object.values(benByCam).sort((a,b)=>(b.ca-b.cout)-(a.ca-a.cout));
+    document.getElementById('rapport-benefice').innerHTML = benArr.length
+      ? benArr.map(b=>{
+          const ben = b.ca - b.cout;
+          const pct = b.ca > 0 ? Math.round(ben/b.ca*100) : 0;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f4f8;font-size:12px">
+            <div>
+              <div style="font-weight:600">${b.num}</div>
+              <div style="font-size:10px;color:var(--muted)">${b.nb} livraisons · CA: ${fmt(b.ca)} F</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:700;color:${ben>=0?'#27ae60':'#c0392b'}">${ben>=0?'+':''}${fmt(ben)} F</div>
+              <div style="font-size:10px;color:var(--muted)">${pct}% du CA</div>
+            </div>
+          </div>`;
+        }).join('')
+      : '<p style="color:var(--muted);font-size:12px">Aucune livraison</p>';
+
+    // ── Par zone ──
+    document.getElementById('rapport-zone').innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${(data?.par_zone||[]).map(z=>`<div style="flex:1;min-width:110px;background:var(--bg);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase">${z.zone_livraison}</div>
+        <div style="font-size:18px;font-weight:700;color:var(--primary)">${z.nb}</div>
+        <div style="font-size:10px;color:#2d8a6e">${fmt(z.ca)} F</div>
+      </div>`).join('')}
     </div>`;
-  }).join('');
-  document.getElementById('rapport-zone').innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap">
-    ${data.par_zone.map(z=>`<div style="flex:1;min-width:110px;background:var(--bg);border-radius:8px;padding:10px;text-align:center">
-      <div style="font-size:10px;color:var(--muted);text-transform:uppercase">${z.zone_livraison}</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary)">${z.nb}</div>
-      <div style="font-size:10px;color:#2d8a6e">${fmt(z.ca)} F</div>
-    </div>`).join('')}
-  </div>`;
+
+  } catch(e) { console.error('loadRapports:', e); showToast('Erreur chargement rapports','error'); }
 }
 
-// ── USERS ─────────────────────────────────────────────────────
 async function loadUsers() {
   const data = await apiFetch('/api/users') || [];
   document.getElementById('tbl-users').innerHTML = data.map((u,i)=>`<tr>
