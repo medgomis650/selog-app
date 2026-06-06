@@ -537,10 +537,14 @@ td, th { white-space:nowrap }
       <div class="page" id="page-rapports">
         <div class="section-title"><i class="ti ti-chart-bar"></i> Rapports</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Performance par camion</div><div id="rapport-camion"></div></div>
-          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Par chauffeur</div><div id="rapport-chauffeur"></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px"><i class="ti ti-truck" style="color:var(--primary)"></i> Performance par camion</div><div id="rapport-camion"></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px"><i class="ti ti-users" style="color:#2d8a6e"></i> Par chauffeur</div><div id="rapport-chauffeur"></div></div>
         </div>
-        <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Par zone</div><div id="rapport-zone"></div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:0">
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px"><i class="ti ti-tool" style="color:var(--danger)"></i> Pannes par camion</div><div id="rapport-pannes"></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px"><i class="ti ti-cash" style="color:#27ae60"></i> Bénéfice par camion</div><div id="rapport-benefice"></div></div>
+        </div>
+        <div class="card" style="margin-top:0"><div style="font-size:13px;font-weight:600;margin-bottom:14px"><i class="ti ti-map-pin" style="color:var(--accent)"></i> Par zone</div><div id="rapport-zone"></div></div>
       </div>
 
       <!-- USERS -->
@@ -1073,6 +1077,14 @@ async function openModal(id) {
   const tpls = {
     'add-livraison':`<div class="modal-header"><div class="modal-title"><i class="ti ti-truck-delivery" style="margin-right:6px;color:var(--accent)"></i>Nouvelle livraison</div><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>N° Facture <span style="color:#e8a020;font-size:9px">optionnel — auto-remplit le conteneur</span></label>
+        <div style="display:flex;gap:6px">
+          <input id="f-facture" placeholder="Ex: INV-035" style="flex:1" oninput="searchPrevisionsByFacture()">
+          <button type="button" class="btn btn-outline btn-sm" onclick="searchPrevisionsByFacture()" style="flex-shrink:0"><i class="ti ti-search"></i></button>
+        </div>
+        <div id="prev-results" style="display:none;margin-top:6px;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:180px;overflow-y:auto"></div>
+      </div>
       <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${today}"></div>
       <div class="form-group"><label>Camion</label><select id="f-cam">${camOpts}</select></div>
       <div class="form-group"><label>Chauffeur</label><select id="f-chauf"><option value="">— aucun —</option>${chaufOpts}</select></div>
@@ -1085,17 +1097,7 @@ async function openModal(id) {
       <div class="form-group"><label>Type</label><select id="f-type"><option>20 pieds</option><option>40 pieds</option><option>45 pieds</option></select></div>
       <div class="form-group"><label>Compagnie</label><input id="f-comp"></div>
       <div class="form-group"><label>Zone</label><input id="f-zone" placeholder="Dakar, Thiès..."></div>
-      <div class="form-group" style="grid-column:1/-1">
-        <label>N° Facture <span style="color:#e8a020;font-size:9px">optionnel — auto-remplit le conteneur</span></label>
-        <div style="display:flex;gap:6px">
-          <input id="f-facture" placeholder="Ex: FACT-2025-001" style="flex:1"
-            oninput="searchPrevisionsByFacture()">
-          <button type="button" class="btn btn-outline btn-sm" onclick="searchPrevisionsByFacture()" style="flex-shrink:0">
-            <i class="ti ti-search"></i>
-          </button>
-        </div>
-        <div id="prev-results" style="display:none;margin-top:6px;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:180px;overflow-y:auto"></div>
-      </div>
+
       <div class="form-group"><label>Prix transport (F)</label><input type="number" id="f-prix"></div>
       <div class="form-group"><label>Carburant (F)</label><input type="number" id="f-carb"></div>
       <div class="form-group"><label>Frais (F)</label><input type="number" id="f-frais"></div>
@@ -1357,7 +1359,7 @@ async function editLivraison(l) {
   document.getElementById('modal-content').innerHTML = `
     <div class="modal-header"><div class="modal-title"><i class="ti ti-edit" style="margin-right:6px;color:var(--accent)"></i>Modifier livraison</div><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid">
-      <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${l.date_mission}"></div>
+      <div class="form-group"><label>Date</label><input type="date" id="f-date" value="${(l.date_mission||'').split('T')[0]}"></div>
       <div class="form-group"><label>Camion</label><select id="f-cam">${camOpts}</select></div>
       <div class="form-group"><label>Chauffeur</label><select id="f-chauf">${chaufOpts}</select></div>
       <div class="form-group"><label>N° Conteneur <span style="color:#e8a020;font-size:9px">4L+7C</span></label>
@@ -1371,7 +1373,7 @@ async function editLivraison(l) {
       </select></div>
       <div class="form-group"><label>Compagnie</label><input id="f-comp" value="${l.compagnie||''}"></div>
       <div class="form-group"><label>Zone</label><input id="f-zone" value="${l.zone_livraison||''}"></div>
-      <div class="form-group"><label>Date retour</label><input type="date" id="f-retour" value="${l.date_retour||''}"></div>
+      <div class="form-group"><label>Date retour <span style="color:var(--muted);font-size:9px">(optionnel)</span></label><input type="date" id="f-retour" value="${(l.date_retour||'').split('T')[0]}"></div>
       <div class="form-group"><label>Prix transport (F)</label><input type="number" id="f-prix" value="${l.prix_transport||0}"></div>
       <div class="form-group"><label>Carburant (F)</label><input type="number" id="f-carb" value="${l.carburant||0}"></div>
       <div class="form-group"><label>Frais (F)</label><input type="number" id="f-frais" value="${l.frais||0}"></div>
