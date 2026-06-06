@@ -439,7 +439,7 @@ td, th { white-space:nowrap }
               oninput="loadPrevisions()">
           </div>
         </div>
-        <div class="card" style="padding:0">
+        <div class="card mobile-table" style="padding:0">
           <div class="tbl-wrap"><table>
             <thead><tr>
               <th>Date Fact.</th><th>N° Facture</th><th>N° BL</th>
@@ -449,6 +449,7 @@ td, th { white-space:nowrap }
             <tbody id="tbl-previsions"></tbody>
           </table></div>
         </div>
+        <div class="mobile-cards" id="cards-previsions"></div>
       </div>
 
       <!-- FLOTTE -->
@@ -1589,6 +1590,36 @@ loadLivraisons = async function() {
       </td>
     </tr>`;}).join('')
     || '<tr><td colspan="16" class="empty-row">Aucune livraison enregistrée</td></tr>';
+
+    // ── Cartes mobile ──
+    const cardsEl = document.getElementById('cards-livraisons');
+    if (cardsEl) {
+      cardsEl.innerHTML = rows.length ? rows.map(l => {
+        const typeShort = (l.type_conteneur||'').replace(' pieds','P');
+        const statColor = l.statut==='Livré' ? '#27ae60' : '#e8a020';
+        const statBg    = l.statut==='Livré' ? '#dcfce7' : '#fef9c3';
+        return `<div style="background:#fff;border-radius:12px;border:1px solid #dce3ea;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div>
+              <div style="font-size:15px;font-weight:700;color:#1a3a5c">${l.camion_numero}</div>
+              <div style="font-size:12px;color:#6b7c93;margin-top:1px">${fmtDate(l.date_mission)} · ${l.chauffeur_nom||'—'}</div>
+            </div>
+            <span style="background:${statBg};color:${statColor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">${l.statut}</span>
+          </div>
+          <div style="font-family:monospace;font-size:13px;font-weight:700;color:#1a3a5c;margin-bottom:6px">${l.numero_conteneur} <span style="font-weight:400;color:#6b7c93;font-size:11px">${typeShort} · ${l.compagnie||'—'}</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:10px">
+            <div><span style="color:#6b7c93">Zone</span> <b>${l.zone_livraison}</b></div>
+            <div><span style="color:#6b7c93">Client</span> <b>${l.nom_client||'—'}</b></div>
+            <div><span style="color:#6b7c93">Prix</span> <b style="color:#2d8a6e">${fmt(l.prix_transport)} F</b></div>
+            <div><span style="color:#6b7c93">Carb+Frais+AGS</span> <b style="color:#c0392b">${fmt((parseInt(l.carburant)||0)+(parseInt(l.frais)||0)+(parseInt(l.ags)||0))} F</b></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" style="flex:1;justify-content:center" onclick="editLivraisonById('${l.id}')"><i class="ti ti-edit" style="color:#1a3a5c"></i> Modifier</button>
+            <button class="btn btn-outline btn-sm" onclick="deleteLivraison('${l.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+          </div>
+        </div>`;
+      }).join('') : '<p style="text-align:center;color:#6b7c93;padding:20px">Aucune livraison</p>';
+    }
   } catch(e) { showToast(e.message,'error'); }
 };
 
@@ -1715,6 +1746,41 @@ async function loadPrevisions() {
         </td>
       </tr>`;
     }).join('') || '<tr><td colspan="10" class="empty-row">Aucune prévision</td></tr>';
+
+    // ── Cartes mobile ──
+    const prevCards = document.getElementById('cards-previsions');
+    if (prevCards) {
+      prevCards.innerHTML = sorted.length ? sorted.map(p => {
+        const s = statutCfg[p.statut] || {label:p.statut, bg:'#f0f4f8', color:'#333'};
+        const jr = joursRestants(p);
+        const actif = !['livre','expire'].includes(p.statut);
+        let borderColor = '#dce3ea';
+        if (actif && jr <= 1)  borderColor = '#c0392b';
+        else if (actif && jr === 2) borderColor = '#e67e22';
+        else if (actif && jr !== Infinity) borderColor = '#27ae60';
+        let urgTxt = '';
+        if (actif && jr !== Infinity) urgTxt = jr<=1?'🔴 1 jour !':jr===2?'🟠 2 jours':`🟢 ${jr} j`;
+        return `<div style="background:#fff;border-radius:12px;border:2px solid ${borderColor};padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
+            <div>
+              <div style="font-size:15px;font-weight:700;color:#1a3a5c">${p.numero_facture}</div>
+              <div style="font-size:12px;color:#6b7c93;margin-top:1px">BL: ${p.numero_bl||'—'} · ${fmtDate(p.date_facturation)}</div>
+            </div>
+            <span style="background:${s.bg};color:${s.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">${s.label}</span>
+          </div>
+          <div style="font-family:monospace;font-size:14px;font-weight:700;color:#1a3a5c;margin-bottom:6px">${p.numero_conteneur} <span style="font-weight:400;font-size:11px;color:#6b7c93">${(p.type_conteneur||'').replace(' pieds','P')}</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:12px;margin-bottom:8px">
+            <div><span style="color:#6b7c93">Client</span> <b>${p.nom_client||'—'}</b></div>
+            <div><span style="color:#6b7c93">Destination</span> <b>${p.destination||'—'}</b></div>
+            ${p.date_fin_validite?`<div style="grid-column:1/-1"><span style="color:#6b7c93">Fin validité</span> <b>${fmtDate(p.date_fin_validite)}</b> ${urgTxt?`<span style="font-weight:700">${urgTxt}</span>`:''}</div>`:''}
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" style="flex:1;justify-content:center" onclick="editPrevisionById('${p.id}')"><i class="ti ti-edit" style="color:#1a3a5c"></i> Modifier</button>
+            <button class="btn btn-outline btn-sm" onclick="deletePrevision('${p.id}')"><i class="ti ti-trash" style="color:var(--danger)"></i></button>
+          </div>
+        </div>`;
+      }).join('') : '<p style="text-align:center;color:#6b7c93;padding:20px">Aucune prévision</p>';
+    }
   } catch(e) { showToast(e.message,'error'); }
 }
 
