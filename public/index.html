@@ -255,6 +255,16 @@ td, th { white-space:nowrap }
   .bar-label{font-size:8px}
   /* Tabs */
   .tab{padding:6px 10px;font-size:11px}
+  /* Tables → cachées, cartes → visibles sur mobile */
+  .mobile-table{display:none!important}
+  .mobile-cards{display:flex!important;flex-direction:column;gap:10px}
+  /* Boutons texte section header → cachés (remplacés par + topbar) */
+  .section-title ~ .btn-primary,
+  div[style*="justify-content:space-between"] > .btn-primary:not(.btn-sm){display:none!important}
+  #page-charges div[style*="justify-content:space-between"] > .btn,
+  #page-extra div[style*="justify-content:space-between"] > .btn{display:inline-flex!important}
+  /* API badge caché */
+  #api-badge-el{display:none!important}
 }
 
 /* ── TRÈS PETIT (≤400px) — iPhone SE, petits Android ── */
@@ -416,10 +426,11 @@ td, th { white-space:nowrap }
             <input type="text" id="f-search" placeholder="Rechercher..." style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;flex:1;min-width:150px" oninput="loadLivraisons()">
           </div>
         </div>
-        <div class="card" style="padding:0"><div class="tbl-wrap"><table>
+        <div class="card mobile-table" style="padding:0"><div class="tbl-wrap"><table>
           <thead><tr><th>Date</th><th>Camion</th><th>Chauffeur</th><th>Conteneur</th><th>Type</th><th>Compagnie</th><th>Zone</th><th>Date retour</th><th>Durée</th><th>Prix transport</th><th>Carburant</th><th>Frais</th><th>AGS</th><th>Client</th><th>Statut</th><th></th></tr></thead>
           <tbody id="tbl-livraisons"></tbody>
         </table></div></div>
+        <div class="mobile-cards" id="cards-livraisons"></div>
       </div>
 
       <!-- PRÉVISIONS -->
