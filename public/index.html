@@ -987,9 +987,9 @@ async function loadExtra() {
     <td><button class="btn btn-outline btn-sm" onclick="deleteItem('/api/extra/camion/${e.id}','extra',loadExtra)"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
   </tr>`).join('') || '<tr><td colspan="5" class="empty-row">Aucun</td></tr>';
   document.getElementById('tbl-extra2').innerHTML = (e2||[]).map(e=>`<tr>
-    <td>${e.nom}</td><td>${e.motif}</td><td>${fmt(e.montant)} F</td>
+    <td>${fmtDate(e.date_depense)}</td><td>${e.nom}</td><td>${e.motif}</td><td>${fmt(e.montant)} F</td>
     <td><button class="btn btn-outline btn-sm" onclick="deleteItem('/api/extra/general/${e.id}','extra',loadExtra)"><i class="ti ti-trash" style="color:var(--danger)"></i></button></td>
-  </tr>`).join('') || '<tr><td colspan="4" class="empty-row">Aucun</td></tr>';
+  </tr>`).join('') || '<tr><td colspan="5" class="empty-row">Aucun</td></tr>';
 }
 
 // ── RAPPORTS ──────────────────────────────────────────────────
