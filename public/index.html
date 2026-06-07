@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SELOG — Senegal Expert Logistique</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--primary:#1a3a5c;--accent:#e8a020;--accent2:#2d8a6e;--bg:#f0f4f8;--card:#fff;--text:#1a2b3c;--muted:#6b7c93;--border:#dce3ea;--danger:#c0392b;--success:#27ae60;--sidebar-w:220px}
@@ -84,6 +85,8 @@ tbody td{padding:9px 11px;vertical-align:middle;white-space:nowrap}
 .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:#f8fafc}
 .btn-danger{background:var(--danger);color:#fff}
 .btn-success{background:var(--success);color:#fff}
+.btn-excel{background:#1d6f42;color:#fff;border:none}
+.btn-excel:hover{background:#155835}
 .btn-sm{padding:5px 9px;font-size:11px}
 #modal-overlay{display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:12px}
 #modal-overlay.open{display:flex}
@@ -118,6 +121,8 @@ tbody td{padding:9px 11px;vertical-align:middle;white-space:nowrap}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty-row{text-align:center;padding:24px;color:var(--muted)}
+.btn-excel{background:#1d6f42;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-family:inherit}
+.btn-excel:hover{background:#165a35}
 
 /* ── TABLES: no wrap, compact ── */
 tbody td{white-space:nowrap}
@@ -417,7 +422,10 @@ td, th { white-space:nowrap }
       <div class="page" id="page-livraisons">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="section-title"><i class="ti ti-truck-delivery"></i> Livraisons</div>
-          <button class="btn btn-primary" onclick="openModal('add-livraison')"><i class="ti ti-plus"></i> Nouvelle livraison</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-excel" onclick="exportLivraisons()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+            <button class="btn btn-primary" onclick="openModal('add-livraison')"><i class="ti ti-plus"></i> Nouvelle livraison</button>
+          </div>
         </div>
         <div class="card" style="padding:10px 14px;margin-bottom:10px">
           <div class="filter-row" style="display:flex;gap:10px;flex-wrap:wrap">
@@ -437,7 +445,10 @@ td, th { white-space:nowrap }
       <div class="page" id="page-previsions">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="section-title"><i class="ti ti-clipboard-list"></i> Prévisions</div>
-          <button class="btn btn-primary" onclick="openModal('add-prevision')"><i class="ti ti-plus"></i> Nouvelle prévision</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-excel" onclick="exportPrevisions()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+            <button class="btn btn-primary" onclick="openModal('add-prevision')"><i class="ti ti-plus"></i> Nouvelle prévision</button>
+          </div>
         </div>
         <div class="card" style="padding:10px 14px;margin-bottom:10px">
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -471,7 +482,10 @@ td, th { white-space:nowrap }
       <div class="page" id="page-flotte">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="section-title"><i class="ti ti-truck"></i> Flotte</div>
-          <button class="btn btn-primary" onclick="openModal('add-camion')"><i class="ti ti-plus"></i> Ajouter camion</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-excel" onclick="exportFlotte()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+            <button class="btn btn-primary" onclick="openModal('add-camion')"><i class="ti ti-plus"></i> Ajouter camion</button>
+          </div>
         </div>
         <div class="camion-grid" id="camion-grid"></div>
       </div>
@@ -480,7 +494,10 @@ td, th { white-space:nowrap }
       <div class="page" id="page-chauffeurs">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="section-title"><i class="ti ti-users"></i> Chauffeurs</div>
-          <button class="btn btn-primary" onclick="openModal('add-chauffeur')"><i class="ti ti-plus"></i> Ajouter chauffeur</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-excel" onclick="exportChauffeurs()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+            <button class="btn btn-primary" onclick="openModal('add-chauffeur')"><i class="ti ti-plus"></i> Ajouter chauffeur</button>
+          </div>
         </div>
         <div class="card" style="padding:0"><div class="tbl-wrap"><table>
           <thead><tr><th>#</th><th>Nom</th><th>Naissance</th><th>Téléphone</th><th>Permis</th><th>Statut</th><th></th></tr></thead>
@@ -492,7 +509,10 @@ td, th { white-space:nowrap }
       <div class="page" id="page-pannes">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="section-title"><i class="ti ti-tool"></i> Pannes</div>
-          <button class="btn btn-danger" onclick="openModal('add-panne')"><i class="ti ti-plus"></i> Déclarer panne</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-excel" onclick="exportPannes()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+            <button class="btn btn-danger" onclick="openModal('add-panne')"><i class="ti ti-plus"></i> Déclarer panne</button>
+          </div>
         </div>
         <div class="card" style="padding:0"><div class="tbl-wrap"><table>
           <thead><tr><th>Date</th><th>Camion</th><th>Nature</th><th>Pièces</th><th>M.O.</th><th>Ouvrier</th><th>Fin</th><th>Total</th><th></th></tr></thead>
@@ -1984,6 +2004,209 @@ async function deletePrevision(id) {
 function topbarAddAction() {
   const btn = document.getElementById('topbar-add-btn');
   if (btn && btn._modal) openModal(btn._modal);
+}
+
+// ── EXPORT EXCEL ──────────────────────────────────────────────
+function xlsxExport(data, cols, filename) {
+  if (!data || !data.length) { showToast('Aucune donnée à exporter','error'); return; }
+  const ws = XLSX.utils.json_to_sheet(data.map(row => {
+    const obj = {};
+    cols.forEach(c => { obj[c.label] = row[c.key] !== undefined ? row[c.key] : ''; });
+    return obj;
+  }));
+  // Largeur colonnes auto
+  const colWidths = cols.map(c => ({wch: Math.max(c.label.length, 14)}));
+  ws['!cols'] = colWidths;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Données');
+  XLSX.writeFile(wb, filename + '_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  showToast('Export Excel téléchargé !');
+}
+
+async function exportLivraisons() {
+  showToast('Préparation export...');
+  const data = (await apiFetch('/api/livraisons?limit=10000'))?.data || [];
+  xlsxExport(data, [
+    {key:'date_mission',    label:'Date mission'},
+    {key:'camion_numero',   label:'Camion'},
+    {key:'chauffeur_nom',   label:'Chauffeur'},
+    {key:'numero_conteneur',label:'N° Conteneur'},
+    {key:'type_conteneur',  label:'Type'},
+    {key:'compagnie',       label:'Compagnie'},
+    {key:'zone_livraison',  label:'Zone'},
+    {key:'date_retour',     label:'Date retour'},
+    {key:'duree_mission',   label:'Durée (j)'},
+    {key:'prix_transport',  label:'Prix transport'},
+    {key:'carburant',       label:'Carburant'},
+    {key:'frais',           label:'Frais'},
+    {key:'ags',             label:'AGS'},
+    {key:'nom_client',      label:'Client'},
+    {key:'statut',          label:'Statut'},
+  ], 'SELOG_Livraisons');
+}
+
+async function exportPrevisions() {
+  showToast('Préparation export...');
+  const data = await apiFetch('/api/previsions') || [];
+  xlsxExport(data, [
+    {key:'date_facturation', label:'Date facturation'},
+    {key:'numero_facture',   label:'N° Facture'},
+    {key:'numero_bl',        label:'N° BL'},
+    {key:'numero_conteneur', label:'N° Conteneur'},
+    {key:'type_conteneur',   label:'Type'},
+    {key:'nom_client',       label:'Client'},
+    {key:'destination',      label:'Destination'},
+    {key:'date_fin_validite',label:'Fin validité'},
+    {key:'statut',           label:'Statut'},
+    {key:'compagnie',        label:'Compagnie'},
+  ], 'SELOG_Previsions');
+}
+
+async function exportPannes() {
+  showToast('Préparation export...');
+  const data = await apiFetch('/api/pannes') || [];
+  xlsxExport(data, [
+    {key:'date_panne',    label:'Date panne'},
+    {key:'camion_numero', label:'Camion'},
+    {key:'nature_panne',  label:'Nature'},
+    {key:'cout_pieces',   label:'Coût pièces'},
+    {key:"main_oeuvre",   label:"Main d'oeuvre"},
+    {key:'cout_total',    label:'Total'},
+    {key:'nom_ouvrier',   label:'Ouvrier'},
+    {key:'date_fin',      label:'Date fin'},
+    {key:'duree_depannage',label:'Durée (j)'},
+  ], 'SELOG_Pannes');
+}
+
+async function exportChauffeurs() {
+  showToast('Préparation export...');
+  const data = await apiFetch('/api/chauffeurs') || [];
+  xlsxExport(data, [
+    {key:'nom',           label:'Nom'},
+    {key:'date_naissance',label:'Date naissance'},
+    {key:'telephone',     label:'Téléphone'},
+    {key:'numero_permis', label:'N° Permis'},
+    {key:'statut',        label:'Statut'},
+    {key:'nb_missions',   label:'Nb missions'},
+    {key:'ca_total',      label:'CA total (F)'},
+  ], 'SELOG_Chauffeurs');
+}
+
+async function exportFlotte() {
+  showToast('Préparation export...');
+  const data = await apiFetch('/api/camions') || [];
+  xlsxExport(data, [
+    {key:'numero',      label:'N° Camion'},
+    {key:'statut',      label:'Statut'},
+    {key:'marque',      label:'Marque'},
+    {key:'modele',      label:'Modèle'},
+    {key:'annee',       label:'Année'},
+    {key:'nb_missions', label:'Nb missions'},
+    {key:'ca_total',    label:'CA total (F)'},
+    {key:'cout_total',  label:'Coûts (F)'},
+    {key:'nb_pannes',   label:'Nb pannes'},
+    {key:'cout_pannes', label:'Coût pannes (F)'},
+  ], 'SELOG_Flotte');
+}
+
+// ── EXPORT EXCEL ──────────────────────────────────────────────
+function xlsxExport(rows, headers, filename) {
+  if (!rows || !rows.length) { showToast('Aucune donnée à exporter', 'error'); return; }
+  const ws = XLSX.utils.json_to_sheet(rows, { header: Object.keys(headers) });
+  // Renommer les colonnes
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const addr = XLSX.utils.encode_cell({ r: 0, c });
+    const key  = ws[addr]?.v;
+    if (key && headers[key]) ws[addr].v = headers[key];
+  }
+  // Style largeur colonnes
+  ws['!cols'] = Object.keys(headers).map(() => ({ wch: 18 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'SELOG');
+  XLSX.writeFile(wb, filename + '_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  showToast('Export Excel téléchargé ✅');
+}
+
+async function exportLivraisons() {
+  const data = await apiFetch('/api/livraisons?limit=10000');
+  const rows = (data?.data || []).map(l => ({
+    date:        fmtDate(l.date_mission),
+    camion:      l.camion_numero,
+    chauffeur:   l.chauffeur_nom || '',
+    conteneur:   l.numero_conteneur,
+    type:        (l.type_conteneur||'').replace(' pieds','P'),
+    compagnie:   l.compagnie || '',
+    zone:        l.zone_livraison,
+    retour:      fmtDate(l.date_retour),
+    duree:       l.duree_mission != null ? l.duree_mission + 'j' : '',
+    prix:        parseInt(l.prix_transport || 0),
+    carburant:   parseInt(l.carburant || 0),
+    frais:       parseInt(l.frais || 0),
+    ags:         parseInt(l.ags || 0),
+    client:      l.nom_client || '',
+    statut:      l.statut,
+  }));
+  xlsxExport(rows, {
+    date:'Date', camion:'Camion', chauffeur:'Chauffeur', conteneur:'Conteneur',
+    type:'Type', compagnie:'Compagnie', zone:'Zone', retour:'Date retour',
+    duree:'Durée', prix:'Prix transport', carburant:'Carburant',
+    frais:'Frais', ags:'AGS', client:'Client', statut:'Statut'
+  }, 'Livraisons_SELOG');
+}
+
+async function exportPrevisions() {
+  const data = await apiFetch('/api/previsions?') || [];
+  const rows = data.map(p => ({
+    date_fact:   fmtDate(p.date_facturation),
+    facture:     p.numero_facture,
+    bl:          p.numero_bl || '',
+    conteneur:   p.numero_conteneur,
+    type:        (p.type_conteneur||'').replace(' pieds','P'),
+    client:      p.nom_client || '',
+    destination: p.destination || '',
+    fin_valid:   fmtDate(p.date_fin_validite),
+    statut:      p.statut,
+  }));
+  xlsxExport(rows, {
+    date_fact:'Date fact.', facture:'N° Facture', bl:'N° BL',
+    conteneur:'Conteneur', type:'Type', client:'Client',
+    destination:'Destination', fin_valid:'Fin validité', statut:'Statut'
+  }, 'Previsions_SELOG');
+}
+
+async function exportPannes() {
+  const data = await apiFetch('/api/pannes') || [];
+  const rows = data.map(p => ({
+    date:        fmtDate(p.date_panne),
+    camion:      p.camion_numero,
+    nature:      p.nature_panne,
+    pieces:      parseInt(p.cout_pieces || 0),
+    main_oeuvre: parseInt(p.main_oeuvre || 0),
+    total:       parseInt(p.cout_total  || 0),
+    ouvrier:     p.nom_ouvrier || '',
+    date_fin:    fmtDate(p.date_fin),
+  }));
+  xlsxExport(rows, {
+    date:'Date', camion:'Camion', nature:'Nature',
+    pieces:'Coût pièces', main_oeuvre:"Main d oeuvre",
+    total:'Total', ouvrier:'Ouvrier', date_fin:'Date fin'
+  }, 'Pannes_SELOG');
+}
+
+async function exportChauffeurs() {
+  const data = await apiFetch('/api/chauffeurs') || [];
+  const rows = data.map(c => ({
+    nom:     c.nom,
+    ddn:     fmtDate(c.date_naissance),
+    tel:     c.telephone || '',
+    permis:  c.numero_permis || '',
+    statut:  c.statut,
+  }));
+  xlsxExport(rows, {
+    nom:'Nom', ddn:'Date naissance', tel:'Téléphone',
+    permis:'N° Permis', statut:'Statut'
+  }, 'Chauffeurs_SELOG');
 }
 
 // ── BOOT ──────────────────────────────────────────────────────
