@@ -230,7 +230,7 @@ extraRouter.delete('/camion/:id', authenticate, async (req, res, next) => {
 
 extraRouter.get('/general', authenticate, async (req, res, next) => {
   try {
-    const { rows } = await query(`SELECT * FROM extra_general ORDER BY created_at DESC`);
+    const { rows } = await query(`SELECT * FROM extra_general ORDER BY date_depense DESC NULLS LAST, created_at DESC`);
     res.json(rows);
   } catch (err) { next(err); }
 });
@@ -239,13 +239,14 @@ extraRouter.post('/general', authenticate, [
   body('nom').trim().notEmpty(),
   body('motif').trim().notEmpty(),
   body('montant').isInt({ min: 0 }),
+  body('date_depense').optional({checkFalsy:true}).isDate(),
 ], validate, async (req, res, next) => {
   try {
-    const { nom, motif, montant } = req.body;
+    const { nom, motif, montant, date_depense } = req.body;
     const { rows } = await query(
-      `INSERT INTO extra_general (nom, motif, montant, created_by)
-       VALUES ($1,$2,$3,$4) RETURNING *`,
-      [nom, motif, montant, req.user.id]
+      `INSERT INTO extra_general (nom, motif, montant, date_depense, created_by)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [nom, motif, montant, date_depense||new Date().toISOString().split('T')[0], req.user.id]
     );
     res.status(201).json(rows[0]);
   } catch (err) { next(err); }
